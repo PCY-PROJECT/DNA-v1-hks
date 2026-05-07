@@ -27,12 +27,48 @@ public class ArtifactService {
     @Value("${dnacloud.artifact-store}")
     private String artifactStore;
 
+    @Value("${dnacloud.local-test-mode:false}")
+    private boolean localTestMode;
+
     public ArtifactResponse acquireWithPayment(String packageId, String version, String paymentCredential) {
-        log.info("[ArtifactService.acquireWithPayment] start, packageId={}, version={}", packageId, version);
+        log.info("[ArtifactService.acquireWithPayment] start, packageId={}, version={}, localTestMode={}", packageId, version, localTestMode);
 
         DnaPackageInfo pkg = marketplaceService.getById(packageId);
         if (pkg == null) {
             throw new IllegalArgumentException("Package not found: " + packageId);
+        }
+
+        if (localTestMode) {
+            log.info("[ArtifactService.acquireWithPayment] local-test-mode: skipping payment verification");
+            String artifactPathTest = resolveArtifactPath(packageId, version);
+            String sha256Test = computeSha256(artifactPathTest);
+            String testTxHash = "local-test-" + System.currentTimeMillis();
+            PaymentReceipt testReceipt = PaymentReceipt.builder()
+                    .txHash(testTxHash)
+                    .payer("local-test-buyer")
+                    .amount(pkg.getPrice().getAmount())
+                    .currency(pkg.getPrice().getCurrency())
+                    .network(pkg.getPrice().getNetwork())
+                    .verifiedAt(Instant.now().toString())
+                    .settlementRef("local-test-settlement-" + testTxHash)
+                    .build();
+            try {
+                long grossMinimal = parseAmountToMinimal(pkg.getPrice().getAmount());
+                creatorService.recordPayment(
+                    "local-test-buyer", packageId, version,
+                    "{\"settlementRef\":\"local-test-settlement-" + testTxHash + "\"}", testTxHash, grossMinimal
+                );
+            } catch (Exception e) {
+                log.warn("[ArtifactService.acquireWithPayment] local-test revenue record failed (non-fatal): {}", e.getMessage());
+            }
+            return ArtifactResponse.builder()
+                    .packageId(packageId)
+                    .version(version)
+                    .downloadUrl("http://localhost:8080/v1/dna/" + packageId + "/versions/" + version + "/download")
+                    .signature(loadSignature(packageId, version))
+                    .sha256(sha256Test)
+                    .paymentReceipt(testReceipt)
+                    .build();
         }
 
         if (paymentCredential == null || paymentCredential.isBlank()) {

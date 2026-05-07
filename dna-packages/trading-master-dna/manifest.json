@@ -27,6 +27,11 @@
     "currency": "USDG",
     "network": "xlayer"
   },
+  "payout": {
+    "address": "0x0000000000000000000000000000000000000001",
+    "currency": "USDG",
+    "network": "xlayer"
+  },
   "components": {
     "skills": ["skills/trading-master/SKILL.md"],
     "agents": [

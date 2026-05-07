@@ -44,38 +44,46 @@ export async function installCommand(packageId: string, options: InstallOptions)
     process.exit(0);
   }
 
+  const localTestMode = process.env.DNACLOUD_LOCAL_TEST === 'true';
   const apiKey = process.env.OKX_API_KEY;
   const secretKey = process.env.OKX_SECRET_KEY;
   const passphrase = process.env.OKX_PASSPHRASE;
 
-  if (!apiKey || !secretKey || !passphrase) {
+  if (!localTestMode && (!apiKey || !secretKey || !passphrase)) {
     console.error(chalk.red('\n❌ OKX x402 支付配置缺失'));
     console.error('请设置以下环境变量（或在 .env 文件中配置）：');
     console.error('  OKX_API_KEY    — OKX API Key');
     console.error('  OKX_SECRET_KEY — OKX Secret Key');
     console.error('  OKX_PASSPHRASE — OKX Passphrase');
+    console.error(chalk.gray('\n本地测试可设置 DNACLOUD_LOCAL_TEST=true 跳过支付'));
     process.exit(1);
   }
 
-  const paymentClient = new PaymentClient({ apiKey, secretKey, passphrase });
   const version = options.version === 'latest' ? manifest.version : options.version;
+  let credential = '';
 
-  spin.start('发起 OKX x402 支付请求...');
+  if (localTestMode) {
+    spin.start('本地测试模式 — 跳过 OKX x402 支付...');
+    spin.succeed('本地测试模式：已跳过支付验证');
+  } else {
+    const paymentClient = new PaymentClient({ apiKey: apiKey!, secretKey: secretKey!, passphrase: passphrase! });
 
-  const firstAttempt = await marketplaceClient.getArtifact(packageId, version, '');
-  if (firstAttempt.type !== 'payment_required') {
-    spin.fail('预期收到 402 挑战，但服务器未返回支付要求。');
-    process.exit(1);
-  }
+    spin.start('发起 OKX x402 支付请求...');
 
-  spin.text = '签名 OKX x402 支付...';
-  let credential: string;
-  try {
-    credential = await paymentClient.signAndPay(firstAttempt.challenge);
-    spin.succeed('支付凭证已生成');
-  } catch (err) {
-    spin.fail(`支付失败: ${(err as Error).message}`);
-    process.exit(1);
+    const firstAttempt = await marketplaceClient.getArtifact(packageId, version, '');
+    if (firstAttempt.type !== 'payment_required') {
+      spin.fail('预期收到 402 挑战，但服务器未返回支付要求。');
+      process.exit(1);
+    }
+
+    spin.text = '签名 OKX x402 支付...';
+    try {
+      credential = await paymentClient.signAndPay(firstAttempt.challenge);
+      spin.succeed('支付凭证已生成');
+    } catch (err) {
+      spin.fail(`支付失败: ${(err as Error).message}`);
+      process.exit(1);
+    }
   }
 
   spin.start('提交支付并下载签名 artifact...');

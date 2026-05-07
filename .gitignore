@@ -12,3 +12,5 @@ target/
 *.log
 pnpm-lock.yaml
 server/data/
+server/artifacts/
+artifacts/

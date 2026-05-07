@@ -7,7 +7,8 @@ const SECRET_PATTERNS: Array<{ pattern: RegExp; code: string; message: string }>
     message: 'Possible private key detected',
   },
   {
-    pattern: /mnemonic|seed[_\s]?phrase|passphrase/i,
+    // Match only when followed by an actual value (not an env var reference like ${...})
+    pattern: /(?:mnemonic|seed[_\s]?phrase|passphrase)\s*[:=]\s*["']?(?!\$\{)[a-zA-Z0-9 ]{8,}/i,
     code: 'SECRET_MNEMONIC_HINT',
     message: 'Possible seed phrase or mnemonic reference detected',
   },

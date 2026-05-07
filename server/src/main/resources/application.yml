@@ -31,6 +31,7 @@ dnacloud:
   platform-fee-rate: ${DNACLOUD_PLATFORM_FEE_RATE:0.20}
   payment-address: ${DNACLOUD_PAYMENT_ADDRESS:}
   minimum-payout: ${DNACLOUD_MINIMUM_PAYOUT:100000}
+  local-test-mode: ${DNACLOUD_LOCAL_TEST:false}
 
 okx:
   x402:

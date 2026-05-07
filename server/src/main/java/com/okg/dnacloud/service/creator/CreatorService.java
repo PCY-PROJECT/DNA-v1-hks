@@ -390,6 +390,10 @@ public class CreatorService {
         Files.createDirectories(dir);
         Path dest = dir.resolve(hash + ".zip");
         Files.copy(zipFile.toPath(), dest, StandardCopyOption.REPLACE_EXISTING);
+        // Also write to the canonical download path expected by ArtifactService
+        Path downloadDir = Paths.get(artifactStore, packageId, version);
+        Files.createDirectories(downloadDir);
+        Files.copy(zipFile.toPath(), downloadDir.resolve("package.zip"), StandardCopyOption.REPLACE_EXISTING);
         return dest.toString();
     }
 
