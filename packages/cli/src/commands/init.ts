@@ -35,6 +35,20 @@ export async function initCommand(options: InitOptions): Promise<void> {
     fs.mkdirSync(d, { recursive: true });
   }
 
+  spin.text = '注册 dnacloud-marketplace MCP server...';
+  const mcpJsonPath = path.join(cwd, '.mcp.json');
+  const mcpConfig = fs.existsSync(mcpJsonPath)
+    ? JSON.parse(fs.readFileSync(mcpJsonPath, 'utf-8')) as Record<string, unknown>
+    : {};
+  const servers = (mcpConfig.mcpServers as Record<string, unknown>) ?? {};
+  servers['dnacloud-marketplace'] = {
+    command: 'npx',
+    args: ['-y', '@dnacloud/mcp-server'],
+    env: { DNACLOUD_MARKETPLACE_URL: options.marketplaceUrl },
+  };
+  mcpConfig.mcpServers = servers;
+  fs.writeFileSync(mcpJsonPath, JSON.stringify(mcpConfig, null, 2) + '\n');
+
   spin.text = '写入 DNAcloud 配置...';
   const config = {
     version: '1',
