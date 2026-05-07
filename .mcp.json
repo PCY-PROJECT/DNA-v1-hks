@@ -1,0 +1,48 @@
+{
+  "mcpServers": {
+    "dnacloud-marketplace": {
+      "command": "node",
+      "args": ["/Users/oker/Documents/黑客松/DNA/packages/mcp-server/dist/index.js"],
+      "env": {
+        "DNACLOUD_MARKETPLACE_URL": "http://localhost:8080"
+      }
+    },
+    "market-data": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@dnacloud/mcp-market-data"
+      ],
+      "env": {
+        "PROVIDER": "${DNACLOUD_MARKET_PROVIDER}",
+        "API_KEY": "${MARKET_DATA_API_KEY}"
+      }
+    },
+    "account-read": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@dnacloud/mcp-account-read"
+      ],
+      "env": {
+        "VENUE": "${DNACLOUD_TRADING_VENUE}",
+        "API_KEY": "${TRADING_API_KEY}",
+        "API_SECRET": "${TRADING_API_SECRET}",
+        "PASSPHRASE": "${TRADING_API_PASSPHRASE}"
+      }
+    },
+    "order-execution": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@dnacloud/mcp-order-execution"
+      ],
+      "env": {
+        "VENUE": "${DNACLOUD_TRADING_VENUE}",
+        "API_KEY": "${TRADING_API_KEY}",
+        "API_SECRET": "${TRADING_API_SECRET}",
+        "PASSPHRASE": "${TRADING_API_PASSPHRASE}"
+      }
+    }
+  }
+}

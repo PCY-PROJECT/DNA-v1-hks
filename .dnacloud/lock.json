@@ -1,0 +1,13 @@
+{
+  "version": "1",
+  "installed": {
+    "trading-master-dna": {
+      "version": "1.0.0",
+      "installedAt": "2026-05-07T06:13:09.113Z",
+      "paymentReceiptHash": "eca8968fbe2af1d918cdbdf97a188171a28d76e243408001aaefd557e92c3334",
+      "signatureVerified": true,
+      "installDir": "/Users/oker/Documents/黑客松/DNA/.dnacloud/installed/trading-master-dna/1.0.0",
+      "snapshotDir": "/Users/oker/Documents/黑客松/DNA/.dnacloud/snapshots/trading-master-dna-1.0.0"
+    }
+  }
+}
