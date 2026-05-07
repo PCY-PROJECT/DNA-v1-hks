@@ -8,7 +8,36 @@ export type DnaCapability =
   | 'order_preview'
   | 'live_order_tool_integration'
   | 'trade_journal'
-  | 'post_trade_review';
+  | 'post_trade_review'
+  | string;
+
+export type DnaPackageStatus =
+  | 'draft'
+  | 'uploaded'
+  | 'rejected'
+  | 'published'
+  | 'suspended'
+  | 'deprecated';
+
+export type ValidationResult = 'passed' | 'passed_with_warnings' | 'failed';
+
+export type RevenueStatus =
+  | 'pending_payout'
+  | 'payout_processing'
+  | 'paid'
+  | 'payout_failed'
+  | 'held';
+
+export interface DnaCreator {
+  display_name?: string;
+  wallet_address: string;
+}
+
+export interface DnaPayout {
+  address: string;
+  network: string;
+  currency: string;
+}
 
 export interface DnaManifest {
   schemaVersion: 'dnacloud.package.v1';
@@ -21,8 +50,18 @@ export interface DnaManifest {
   capabilities: DnaCapability[];
   notGuaranteed: string[];
   price: DnaPrice;
+  payout?: DnaPayout;
+  creator?: DnaCreator;
+  category?: string;
+  tags?: string[];
+  risk_level?: 'low' | 'medium' | 'high';
   components: DnaComponents;
   signature?: string;
+  platform_signature?: string;
+  package_hash?: string;
+  published_at?: string;
+  status?: DnaPackageStatus;
+  validation_report_id?: string;
 }
 
 export interface DnaPrice {
@@ -105,6 +144,75 @@ export interface DnaSearchResult {
   price: DnaPrice;
   capabilities: DnaCapability[];
   packageType: DnaPackageType;
+  creator?: DnaCreator;
+  validation_result?: ValidationResult;
+  risk_level?: string;
+  status?: DnaPackageStatus;
+}
+
+export interface UploadSession {
+  upload_session_id: string;
+  nonce: string;
+  challenge: string;
+  package_id?: string;
+  payout_address?: string;
+  expires_at: string;
+}
+
+export interface UploadResult {
+  package_id: string;
+  version: string;
+  status: DnaPackageStatus;
+  validation_result: ValidationResult;
+  validation_report?: ValidationReport;
+  marketplace_url: string;
+}
+
+export interface ValidationReport {
+  result: ValidationResult;
+  score: number;
+  errors: ValidationIssue[];
+  warnings: ValidationIssue[];
+  capabilities: {
+    skills: number;
+    agents: number;
+    commands: number;
+    mcp: number;
+    hooks: number;
+  };
+}
+
+export interface ValidationIssue {
+  code: string;
+  message: string;
+  file?: string;
+}
+
+export interface RevenueEntry {
+  revenue_id: string;
+  payment_id: string;
+  package_id: string;
+  package_version: string;
+  creator_id: string;
+  payout_address: string;
+  network: string;
+  currency: string;
+  gross_amount: string;
+  platform_fee_amount: string;
+  creator_amount: string;
+  status: RevenueStatus;
+  created_at: string;
+}
+
+export interface CreatorEarnings {
+  total_gross: string;
+  platform_fee: string;
+  pending_payout: string;
+  paid_payout: string;
+  currency: string;
+  network: string;
+  payout_address: string;
+  entries: RevenueEntry[];
 }
 
 export interface DnaRef {

@@ -193,3 +193,53 @@ Trading Master DNA v1.0.0 官方能力包已安装到此项目。
 
 **重要**：Trading Master DNA 不保证盈利。所有分析需配置真实 MCP 数据源。  
 运行 `dnacloud verify trading-master-dna` 查看配置状态。
+
+---
+
+## v0.6：Creator Upload & Revenue Settlement（已实现）
+
+v0.6 在 v0.5 购买/安装主流程上新增三个闭环：
+
+### 新增 CLI 命令
+
+```bash
+dnacloud validate <package.zip>          # 本地校验包结构
+dnacloud upload <package.zip> --payout-address 0x...   # 上传到市场
+dnacloud creator earnings <wallet>       # 查看收益
+dnacloud creator payouts <wallet>        # 查看结算记录
+dnacloud creator packages <wallet>       # 查看已上传包
+```
+
+### 新增 Claude Code 命令
+
+- `/dna-upload` — 引导创作者完成上传流程
+- `/dna-earnings` — 查看创作者收益和结算状态
+- `/dna-packages` — 查看已上传包列表
+
+### 服务端新增功能
+
+| 端点 | 说明 |
+|------|------|
+| `POST /v1/creator/upload-session` | 创建上传会话，返回 challenge |
+| `POST /v1/creator/packages/upload` | 上传 DNA zip 包 |
+| `GET /v1/creator/packages?wallet=` | 查询创作者包列表 |
+| `GET /v1/creator/earnings?wallet=` | 查询收益账本 |
+| `GET /v1/creator/payouts?wallet=` | 查询结算记录 |
+| `POST /v1/creator/admin/payouts/run-once` | 触发 payout worker |
+
+### 数据库（H2）
+
+`application.yml` 已配置 H2 持久化，数据保存在 `./data/dnacloud.mv.db`。
+
+### 构建命令
+
+```bash
+# Java server（需指定 JAVA_HOME）
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home mvn package -DskipTests
+
+# 启动 server
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home java -jar target/dnacloud-server-1.0.0-SNAPSHOT.jar
+
+# TypeScript packages
+pnpm -r build
+```

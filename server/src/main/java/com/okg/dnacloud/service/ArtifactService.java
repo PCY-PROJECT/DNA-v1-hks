@@ -5,6 +5,7 @@ import com.okg.dnacloud.model.DnaPackageInfo;
 import com.okg.dnacloud.model.PaymentReceipt;
 import com.okg.dnacloud.payment.OkxX402Client;
 import com.okg.dnacloud.payment.X402VerifyResult;
+import com.okg.dnacloud.service.creator.CreatorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +22,7 @@ public class ArtifactService {
 
     private final MarketplaceService marketplaceService;
     private final OkxX402Client x402Client;
+    private final CreatorService creatorService;
 
     @Value("${dnacloud.artifact-store}")
     private String artifactStore;
@@ -81,6 +83,17 @@ public class ArtifactService {
                 .paymentReceipt(receipt)
                 .build();
 
+        // Record payment in ledger (best-effort, non-blocking)
+        try {
+            long grossMinimal = parseAmountToMinimal(verifyResult.getAmount());
+            creatorService.recordPayment(
+                verifyResult.getPayer(), packageId, version,
+                "{\"settlementRef\":\"" + settlementRef + "\"}", verifyResult.getTxHash(), grossMinimal
+            );
+        } catch (Exception e) {
+            log.error("[ArtifactService.acquireWithPayment] revenue ledger record failed (non-fatal), error={}", e.getMessage());
+        }
+
         log.info("[ArtifactService.acquireWithPayment] end, packageId={}, txHash={}", packageId, verifyResult.getTxHash());
         return response;
     }
@@ -113,5 +126,14 @@ public class ArtifactService {
 
     private String loadSignature(String packageId, String version) {
         return "dnacloud-sig-" + packageId + "-" + version;
+    }
+
+    private long parseAmountToMinimal(String amount) {
+        if (amount == null) return 0L;
+        try {
+            return (long) (Double.parseDouble(amount) * 1_000_000L);
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
     }
 }

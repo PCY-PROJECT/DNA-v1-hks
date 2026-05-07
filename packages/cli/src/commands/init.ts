@@ -81,12 +81,21 @@ export async function initCommand(options: InitOptions): Promise<void> {
   }
 
   spin.text = '安装 Bootstrap skill 文件...';
-  // dist/commands/ → dist/ → cli/ → packages/ → repo-root → dna-packages/
-  const bootstrapSrc = path.resolve(import.meta.dirname, '../../../../dna-packages/bootstrap/.claude');
-  if (fs.existsSync(bootstrapSrc)) {
+  // 优先顺序：
+  // 1. npm 包内置 bootstrap/（生产：npm install -g @dnacloud/cli）
+  // 2. 本地 repo 的 dna-packages/bootstrap/.claude（开发模式）
+  const npmBuiltinBootstrap = path.resolve(import.meta.dirname, '../../bootstrap');
+  const repoBootstrap = path.resolve(import.meta.dirname, '../../../../dna-packages/bootstrap/.claude');
+  const bootstrapSrc = fs.existsSync(npmBuiltinBootstrap)
+    ? npmBuiltinBootstrap
+    : fs.existsSync(repoBootstrap)
+    ? repoBootstrap
+    : null;
+
+  if (bootstrapSrc) {
     copyDir(bootstrapSrc, claudeDir);
   } else {
-    spin.warn(`Bootstrap 源目录未找到: ${bootstrapSrc}`);
+    spin.warn('Bootstrap 文件未找到，跳过 skill/command 安装。请确认 CLI 已正确安装。');
   }
 
   spin.succeed('DNAcloud Bootstrap 初始化完成！');

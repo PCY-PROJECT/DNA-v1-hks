@@ -1,0 +1,22 @@
+{
+  "name": "@dnacloud/validator",
+  "version": "0.6.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@dnacloud/schema": "workspace:*",
+    "semver": "^7.6.0"
+  },
+  "devDependencies": {
+    "@types/semver": "^7.5.8",
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,34 +1,72 @@
 package com.okg.dnacloud.service;
 
+import com.okg.dnacloud.entity.PackageVersionEntity;
+import com.okg.dnacloud.entity.PackageVersionEntity.PackageStatus;
 import com.okg.dnacloud.model.DnaPackageInfo;
 import com.okg.dnacloud.model.DnaPrice;
+import com.okg.dnacloud.repository.PackageVersionRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class MarketplaceService {
 
-    private static final List<DnaPackageInfo> CATALOG = buildCatalog();
+    private final PackageVersionRepository packageVersionRepo;
+
+    private static final List<DnaPackageInfo> OFFICIAL_CATALOG = buildCatalog();
 
     public List<DnaPackageInfo> search(String query) {
         log.info("[MarketplaceService.search] start, query={}", query);
         String q = query == null ? "" : query.toLowerCase();
-        List<DnaPackageInfo> results = CATALOG.stream()
-                .filter(p -> matchesQuery(p, q))
-                .toList();
+
+        List<DnaPackageInfo> results = new ArrayList<>();
+
+        // Official packages
+        OFFICIAL_CATALOG.stream()
+            .filter(p -> matchesQuery(p, q))
+            .forEach(results::add);
+
+        // Creator packages from DB
+        List<PackageVersionEntity> creatorPkgs = packageVersionRepo.findByStatus(PackageStatus.published);
+        creatorPkgs.stream()
+            .filter(p -> matchesCreatorPackage(p, q))
+            .map(this::toPackageInfo)
+            .forEach(results::add);
+
         log.info("[MarketplaceService.search] end, resultCount={}", results.size());
         return results;
     }
 
     public DnaPackageInfo getById(String packageId) {
         log.info("[MarketplaceService.getById] start, packageId={}", packageId);
-        DnaPackageInfo result = CATALOG.stream()
-                .filter(p -> p.getId().equals(packageId))
-                .findFirst()
-                .orElse(null);
+
+        // Check official catalog first
+        Optional<DnaPackageInfo> official = OFFICIAL_CATALOG.stream()
+            .filter(p -> p.getId().equals(packageId)).findFirst();
+        if (official.isPresent()) {
+            log.info("[MarketplaceService.getById] found in official catalog");
+            return official.get();
+        }
+
+        // Check creator packages
+        Optional<PackageVersionEntity> creator = packageVersionRepo
+            .findByPackageIdAndVersion(packageId, "latest")
+            .or(() -> packageVersionRepo.findByPackageIdAndVersion(packageId, "1.0.0"));
+
+        if (creator.isEmpty()) {
+            // Try to find any published version
+            List<PackageVersionEntity> all = packageVersionRepo.findByStatus(PackageStatus.published);
+            creator = all.stream().filter(p -> p.getPackageId().equals(packageId)).findFirst();
+        }
+
+        DnaPackageInfo result = creator.map(this::toPackageInfo).orElse(null);
         log.info("[MarketplaceService.getById] end, found={}", result != null);
         return result;
     }
@@ -40,6 +78,33 @@ public class MarketplaceService {
                 || p.getDomain().toLowerCase().contains(q)
                 || p.getDescription().toLowerCase().contains(q)
                 || p.getCapabilities().stream().anyMatch(c -> c.toLowerCase().contains(q));
+    }
+
+    private boolean matchesCreatorPackage(PackageVersionEntity p, String q) {
+        if (q.isBlank()) return true;
+        return p.getPackageId().toLowerCase().contains(q)
+            || p.getName().toLowerCase().contains(q)
+            || p.getCategory().toLowerCase().contains(q)
+            || (p.getDescription() != null && p.getDescription().toLowerCase().contains(q));
+    }
+
+    private DnaPackageInfo toPackageInfo(PackageVersionEntity p) {
+        return DnaPackageInfo.builder()
+            .id(p.getPackageId())
+            .name(p.getName())
+            .version(p.getVersion())
+            .domain(p.getCategory())
+            .description(p.getDescription() != null ? p.getDescription() : "")
+            .packageType("community-pack")
+            .objective("Community-uploaded capability pack")
+            .capabilities(List.of())
+            .notGuaranteed(List.of("profitability", "quality"))
+            .price(DnaPrice.builder()
+                .amount(p.getPriceAmount())
+                .currency(p.getPriceCurrency())
+                .network(p.getPriceNetwork())
+                .build())
+            .build();
     }
 
     private static List<DnaPackageInfo> buildCatalog() {

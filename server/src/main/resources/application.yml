@@ -4,10 +4,33 @@ server:
 spring:
   application:
     name: dnacloud-server
+  datasource:
+    url: jdbc:h2:file:./data/dnacloud;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
 
 dnacloud:
   artifact-store: ${DNACLOUD_ARTIFACT_STORE:./artifacts}
   signing-key: ${DNACLOUD_SIGNING_KEY:}
+  platform-fee-rate: ${DNACLOUD_PLATFORM_FEE_RATE:0.20}
+  payment-address: ${DNACLOUD_PAYMENT_ADDRESS:}
+  minimum-payout: ${DNACLOUD_MINIMUM_PAYOUT:100000}
 
 okx:
   x402:
