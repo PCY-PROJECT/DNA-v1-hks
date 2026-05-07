@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "dnacloud.package.v1",
+  "id": "trading-master-dna",
+  "name": "Trading Master DNA",
+  "version": "1.0.0",
+  "domain": "trading",
+  "packageType": "official-capability-pack",
+  "objective": "install trading capabilities into Claude Code, not optimize profitability",
+  "capabilities": [
+    "market_analysis",
+    "position_management",
+    "strategy_workflow",
+    "risk_control",
+    "order_preview",
+    "live_order_tool_integration",
+    "trade_journal",
+    "post_trade_review"
+  ],
+  "notGuaranteed": [
+    "profitability",
+    "win_rate",
+    "investment_advice",
+    "risk_free_trading"
+  ],
+  "price": {
+    "amount": "9.99",
+    "currency": "USDT",
+    "network": "OKC"
+  },
+  "components": {
+    "skills": ["skills/trading-master/SKILL.md"],
+    "agents": [
+      "agents/market-analyst.md",
+      "agents/portfolio-manager.md",
+      "agents/risk-manager.md",
+      "agents/execution-reviewer.md",
+      "agents/trade-journalist.md"
+    ],
+    "commands": [
+      "commands/trade-plan.md",
+      "commands/risk-check.md",
+      "commands/order-preview.md",
+      "commands/portfolio-status.md",
+      "commands/daily-trade-review.md"
+    ],
+    "mcp": [
+      "mcp/market-data.mcp.json",
+      "mcp/account-read.mcp.json",
+      "mcp/order-execution.mcp.json"
+    ],
+    "hooks": ["hooks/pre-tool-use-trade-guard.json"],
+    "rules": ["rules/machine-rules.json", "rules/permissions.json"],
+    "claude": ["claude/CLAUDE.patch.md"],
+    "tests": ["tests/conformance-tests.json"]
+  }
+}

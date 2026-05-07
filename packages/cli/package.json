@@ -1,0 +1,32 @@
+{
+  "name": "dnacloud",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "DNAcloud CLI — install expert DNA capabilities into Claude Code",
+  "bin": {
+    "dnacloud": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "node --test dist/**/*.test.js",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@dnacloud/schema": "workspace:*",
+    "commander": "^12.1.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.1.0",
+    "node-fetch": "^3.3.2",
+    "adm-zip": "^0.5.16"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^22.0.0",
+    "@types/adm-zip": "^0.5.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

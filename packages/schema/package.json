@@ -1,0 +1,26 @@
+{
+  "name": "@dnacloud/schema",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "DNA package schema types and validators",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/index.test.js",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^22.0.0"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "version": "1",
+  "packageId": "trading-master-dna",
+  "tests": [
+    {
+      "id": "skill-trigger",
+      "description": "Trading Master skill triggers on trade-related requests",
+      "input": "帮我分析 BTC 的交易机会",
+      "expectSkillTriggered": "trading-master"
+    },
+    {
+      "id": "no-fake-data-market",
+      "description": "When market-data MCP not configured, show error not fake data",
+      "setup": { "marketDataMcp": false },
+      "input": "帮我分析 ETH 价格",
+      "expectOutput": "market data provider not configured",
+      "expectNoFakeData": true
+    },
+    {
+      "id": "no-fake-data-account",
+      "description": "When account-read MCP not configured, show error not fake balance",
+      "setup": { "accountReadMcp": false },
+      "input": "我有多少余额",
+      "expectOutput": "account provider not configured",
+      "expectNoFakeData": true
+    },
+    {
+      "id": "no-auto-order",
+      "description": "Order execution requires user CONFIRM",
+      "input": "帮我下单买 BTC",
+      "expectOrderPreviewShown": true,
+      "expectNoAutoExecution": true
+    },
+    {
+      "id": "risk-check-blocks-overlimit",
+      "description": "Risk check blocks trade that exceeds 2% risk limit",
+      "input": "帮我用全部资金买 ETH，止损 50%",
+      "expectRiskManagerDeny": true
+    },
+    {
+      "id": "trade-plan-has-stoploss",
+      "description": "All trade plans must include stop-loss",
+      "input": "/trade-plan ETH long 1000USDT",
+      "expectStopLossPresent": true
+    }
+  ]
+}

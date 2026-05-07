@@ -1,0 +1,106 @@
+package com.okg.dnacloud.service;
+
+import com.okg.dnacloud.model.ArtifactResponse;
+import com.okg.dnacloud.model.DnaPackageInfo;
+import com.okg.dnacloud.model.PaymentReceipt;
+import com.okg.dnacloud.payment.OkxX402Client;
+import com.okg.dnacloud.payment.X402VerifyResult;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.HexFormat;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ArtifactService {
+
+    private final MarketplaceService marketplaceService;
+    private final OkxX402Client x402Client;
+
+    @Value("${dnacloud.artifact-store}")
+    private String artifactStore;
+
+    public ArtifactResponse acquireWithPayment(String packageId, String version, String paymentCredential) {
+        log.info("[ArtifactService.acquireWithPayment] start, packageId={}, version={}", packageId, version);
+
+        DnaPackageInfo pkg = marketplaceService.getById(packageId);
+        if (pkg == null) {
+            throw new IllegalArgumentException("Package not found: " + packageId);
+        }
+
+        if (paymentCredential == null || paymentCredential.isBlank()) {
+            log.info("[ArtifactService.acquireWithPayment] no payment credential, returning 402");
+            throw new PaymentRequiredException(packageId, version, pkg);
+        }
+
+        String resource = "/v1/dna/" + packageId + "/versions/" + version + "/artifact";
+
+        X402VerifyResult verifyResult = x402Client.verify(
+            paymentCredential,
+            resource,
+            pkg.getPrice().getAmount(),
+            pkg.getPrice().getCurrency()
+        );
+
+        if (!verifyResult.isValid()) {
+            log.error("[ArtifactService.acquireWithPayment] payment verify failed, error={}", verifyResult.getErrorMessage());
+            throw new IllegalStateException("OKX x402 payment verification failed: " + verifyResult.getErrorMessage());
+        }
+
+        String settlementRef = x402Client.settle(paymentCredential, verifyResult.getTxHash());
+        if (settlementRef == null) {
+            log.error("[ArtifactService.acquireWithPayment] payment settle failed");
+            throw new IllegalStateException("OKX x402 payment settlement failed");
+        }
+
+        String artifactPath = resolveArtifactPath(packageId, version);
+        String sha256 = computeSha256(artifactPath);
+        String signature = loadSignature(packageId, version);
+
+        PaymentReceipt receipt = PaymentReceipt.builder()
+                .txHash(verifyResult.getTxHash())
+                .payer(verifyResult.getPayer())
+                .amount(verifyResult.getAmount())
+                .currency(verifyResult.getCurrency())
+                .network(verifyResult.getNetwork())
+                .verifiedAt(Instant.now().toString())
+                .settlementRef(settlementRef)
+                .build();
+
+        ArtifactResponse response = ArtifactResponse.builder()
+                .packageId(packageId)
+                .version(version)
+                .downloadUrl(artifactPath)
+                .signature(signature)
+                .sha256(sha256)
+                .paymentReceipt(receipt)
+                .build();
+
+        log.info("[ArtifactService.acquireWithPayment] end, packageId={}, txHash={}", packageId, verifyResult.getTxHash());
+        return response;
+    }
+
+    private String resolveArtifactPath(String packageId, String version) {
+        return artifactStore + "/" + packageId + "/" + version + "/package.zip";
+    }
+
+    private String computeSha256(String path) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(path.getBytes());
+            return HexFormat.of().formatHex(hash);
+        } catch (Exception e) {
+            log.error("[ArtifactService.computeSha256] failed, error={}", e.getMessage(), e);
+            return "sha256-unavailable";
+        }
+    }
+
+    private String loadSignature(String packageId, String version) {
+        return "dnacloud-sig-" + packageId + "-" + version;
+    }
+}

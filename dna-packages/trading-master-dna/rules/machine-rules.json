@@ -1,0 +1,31 @@
+{
+  "version": "1",
+  "packageId": "trading-master-dna",
+  "rules": [
+    {
+      "id": "no-auto-order",
+      "description": "Never call order-execution MCP without explicit user CONFIRM",
+      "enforcer": "hook:PreToolUse"
+    },
+    {
+      "id": "no-fake-data",
+      "description": "Never generate fake market prices, balances, or order results",
+      "enforcer": "skill:SKILL.md"
+    },
+    {
+      "id": "risk-limit",
+      "description": "Single trade risk must not exceed 2% of account equity",
+      "enforcer": "agent:risk-manager"
+    },
+    {
+      "id": "stop-loss-required",
+      "description": "All trade plans must include a stop-loss level",
+      "enforcer": "agent:risk-manager"
+    },
+    {
+      "id": "no-profit-guarantee",
+      "description": "Never promise profitability or guaranteed returns",
+      "enforcer": "skill:SKILL.md"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: dnacloud-server
+
+dnacloud:
+  artifact-store: ${DNACLOUD_ARTIFACT_STORE:./artifacts}
+  signing-key: ${DNACLOUD_SIGNING_KEY:}
+
+okx:
+  x402:
+    verify-url: ${OKX_X402_VERIFY_URL:https://api.okx.com/v1/x402/verify}
+    settle-url: ${OKX_X402_SETTLE_URL:https://api.okx.com/v1/x402/settle}
+    api-key: ${OKX_API_KEY:}
+    secret-key: ${OKX_SECRET_KEY:}
+    passphrase: ${OKX_PASSPHRASE:}
+
+logging:
+  level:
+    com.okg.dnacloud: INFO

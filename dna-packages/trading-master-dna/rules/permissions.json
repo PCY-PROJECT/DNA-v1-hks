@@ -1,0 +1,21 @@
+{
+  "version": "1",
+  "packageId": "trading-master-dna",
+  "allow": [
+    "mcp__market-data__*",
+    "mcp__account-read__get_balance",
+    "mcp__account-read__get_positions",
+    "mcp__account-read__get_orders"
+  ],
+  "requireConfirm": [
+    "mcp__order-execution__place_order",
+    "mcp__order-execution__cancel_order",
+    "mcp__order-execution__modify_order",
+    "mcp__wallet__swap",
+    "mcp__wallet__approve"
+  ],
+  "deny": [
+    "mcp__wallet__transfer",
+    "mcp__wallet__withdraw"
+  ]
+}

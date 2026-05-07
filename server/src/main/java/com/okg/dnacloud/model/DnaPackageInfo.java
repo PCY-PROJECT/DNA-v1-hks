@@ -1,0 +1,20 @@
+package com.okg.dnacloud.model;
+
+import lombok.Builder;
+import lombok.Data;
+import java.util.List;
+
+@Data
+@Builder
+public class DnaPackageInfo {
+    private String id;
+    private String name;
+    private String version;
+    private String domain;
+    private String description;
+    private String packageType;
+    private String objective;
+    private List<String> capabilities;
+    private List<String> notGuaranteed;
+    private DnaPrice price;
+}

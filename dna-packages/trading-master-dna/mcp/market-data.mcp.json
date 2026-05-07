@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "market-data": {
+      "command": "npx",
+      "args": ["-y", "@dnacloud/mcp-market-data"],
+      "env": {
+        "PROVIDER": "${DNACLOUD_MARKET_PROVIDER}",
+        "API_KEY": "${MARKET_DATA_API_KEY}"
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "order-execution": {
+      "command": "npx",
+      "args": ["-y", "@dnacloud/mcp-order-execution"],
+      "env": {
+        "VENUE": "${DNACLOUD_TRADING_VENUE}",
+        "API_KEY": "${TRADING_API_KEY}",
+        "API_SECRET": "${TRADING_API_SECRET}",
+        "PASSPHRASE": "${TRADING_API_PASSPHRASE}"
+      }
+    }
+  }
+}

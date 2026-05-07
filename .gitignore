@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.dnacloud/installed/
+.dnacloud/staging/
+.dnacloud/snapshots/
+*.class
+target/
+.idea/
+*.iml
+.env
+.env.local
+*.log
+pnpm-lock.yaml

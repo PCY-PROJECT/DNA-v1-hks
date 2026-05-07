@@ -1,0 +1,153 @@
+{
+  "packageId": "trading-master-dna",
+  "version": "1.0.0",
+  "targetDir": ".claude",
+  "operations": [
+    {
+      "type": "copy",
+      "source": "skills/trading-master/SKILL.md",
+      "destination": ".claude/skills/trading-master/SKILL.md",
+      "description": "Install Trading Master skill definition"
+    },
+    {
+      "type": "copy",
+      "source": "skills/trading-master/references/trading-workflow.md",
+      "destination": ".claude/skills/trading-master/references/trading-workflow.md",
+      "description": "Install trading workflow reference"
+    },
+    {
+      "type": "copy",
+      "source": "skills/trading-master/references/position-sizing.md",
+      "destination": ".claude/skills/trading-master/references/position-sizing.md",
+      "description": "Install position sizing reference"
+    },
+    {
+      "type": "copy",
+      "source": "skills/trading-master/references/risk-policy.md",
+      "destination": ".claude/skills/trading-master/references/risk-policy.md",
+      "description": "Install risk policy reference"
+    },
+    {
+      "type": "copy",
+      "source": "skills/trading-master/references/order-preview.md",
+      "destination": ".claude/skills/trading-master/references/order-preview.md",
+      "description": "Install order preview reference"
+    },
+    {
+      "type": "copy",
+      "source": "skills/trading-master/references/trade-review.md",
+      "destination": ".claude/skills/trading-master/references/trade-review.md",
+      "description": "Install trade review reference"
+    },
+    {
+      "type": "copy",
+      "source": "agents/market-analyst.md",
+      "destination": ".claude/agents/market-analyst.md",
+      "description": "Install market analyst agent"
+    },
+    {
+      "type": "copy",
+      "source": "agents/portfolio-manager.md",
+      "destination": ".claude/agents/portfolio-manager.md",
+      "description": "Install portfolio manager agent"
+    },
+    {
+      "type": "copy",
+      "source": "agents/risk-manager.md",
+      "destination": ".claude/agents/risk-manager.md",
+      "description": "Install risk manager agent"
+    },
+    {
+      "type": "copy",
+      "source": "agents/execution-reviewer.md",
+      "destination": ".claude/agents/execution-reviewer.md",
+      "description": "Install execution reviewer agent"
+    },
+    {
+      "type": "copy",
+      "source": "agents/trade-journalist.md",
+      "destination": ".claude/agents/trade-journalist.md",
+      "description": "Install trade journalist agent"
+    },
+    {
+      "type": "copy",
+      "source": "commands/trade-plan.md",
+      "destination": ".claude/commands/trade-plan.md",
+      "description": "Install /trade-plan command"
+    },
+    {
+      "type": "copy",
+      "source": "commands/risk-check.md",
+      "destination": ".claude/commands/risk-check.md",
+      "description": "Install /risk-check command"
+    },
+    {
+      "type": "copy",
+      "source": "commands/order-preview.md",
+      "destination": ".claude/commands/order-preview.md",
+      "description": "Install /order-preview command"
+    },
+    {
+      "type": "copy",
+      "source": "commands/portfolio-status.md",
+      "destination": ".claude/commands/portfolio-status.md",
+      "description": "Install /portfolio-status command"
+    },
+    {
+      "type": "copy",
+      "source": "commands/daily-trade-review.md",
+      "destination": ".claude/commands/daily-trade-review.md",
+      "description": "Install /daily-trade-review command"
+    },
+    {
+      "type": "merge-json",
+      "source": "mcp/market-data.mcp.json",
+      "destination": ".mcp.json",
+      "description": "Add market data MCP server config"
+    },
+    {
+      "type": "merge-json",
+      "source": "mcp/account-read.mcp.json",
+      "destination": ".mcp.json",
+      "description": "Add account read MCP server config"
+    },
+    {
+      "type": "merge-json",
+      "source": "mcp/order-execution.mcp.json",
+      "destination": ".mcp.json",
+      "description": "Add order execution MCP server config"
+    },
+    {
+      "type": "write-json",
+      "source": "hooks/pre-tool-use-trade-guard.json",
+      "destination": ".claude/settings.local.json",
+      "description": "Configure PreToolUse trading guard hook"
+    },
+    {
+      "type": "copy",
+      "source": "rules/machine-rules.json",
+      "destination": ".dnacloud/installed/trading-master-dna/1.0.0/machine-rules.json",
+      "description": "Install machine rules"
+    },
+    {
+      "type": "patch-md",
+      "source": "claude/CLAUDE.patch.md",
+      "destination": "CLAUDE.md",
+      "description": "Append Trading Master DNA section to CLAUDE.md"
+    }
+  ],
+  "rollbackPlan": [
+    { "type": "delete", "path": ".claude/skills/trading-master" },
+    { "type": "delete", "path": ".claude/agents/market-analyst.md" },
+    { "type": "delete", "path": ".claude/agents/portfolio-manager.md" },
+    { "type": "delete", "path": ".claude/agents/risk-manager.md" },
+    { "type": "delete", "path": ".claude/agents/execution-reviewer.md" },
+    { "type": "delete", "path": ".claude/agents/trade-journalist.md" },
+    { "type": "delete", "path": ".claude/commands/trade-plan.md" },
+    { "type": "delete", "path": ".claude/commands/risk-check.md" },
+    { "type": "delete", "path": ".claude/commands/order-preview.md" },
+    { "type": "delete", "path": ".claude/commands/portfolio-status.md" },
+    { "type": "delete", "path": ".claude/commands/daily-trade-review.md" },
+    { "type": "delete", "path": ".dnacloud/installed/trading-master-dna" }
+  ]
+}
