@@ -11,3 +11,4 @@ target/
 .env.local
 *.log
 pnpm-lock.yaml
+server/data/
