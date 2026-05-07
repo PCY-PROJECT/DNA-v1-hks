@@ -1,24 +1,24 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 spring:
   application:
     name: dnacloud-server
   datasource:
-    url: jdbc:h2:file:./data/dnacloud;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
+    url: ${DB_URL:jdbc:h2:file:./data/dnacloud;DB_CLOSE_ON_EXIT=FALSE}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${JPA_DDL_AUTO:update}
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: ${JPA_DIALECT:org.hibernate.dialect.H2Dialect}
   h2:
     console:
-      enabled: true
+      enabled: ${H2_CONSOLE_ENABLED:false}
       path: /h2-console
   servlet:
     multipart:
@@ -26,17 +26,20 @@ spring:
       max-request-size: 50MB
 
 dnacloud:
+  base-url: ${DNACLOUD_BASE_URL:http://localhost:8080}
   artifact-store: ${DNACLOUD_ARTIFACT_STORE:./artifacts}
   signing-key: ${DNACLOUD_SIGNING_KEY:}
   platform-fee-rate: ${DNACLOUD_PLATFORM_FEE_RATE:0.20}
   payment-address: ${DNACLOUD_PAYMENT_ADDRESS:}
   minimum-payout: ${DNACLOUD_MINIMUM_PAYOUT:100000}
   local-test-mode: ${DNACLOUD_LOCAL_TEST:false}
+  admin-api-key: ${DNACLOUD_ADMIN_API_KEY:}
+  treasury-key: ${DNACLOUD_TREASURY_KEY:}
+  cors:
+    allowed-origins: ${DNACLOUD_CORS_ORIGINS:http://localhost:3000,http://localhost:5173}
 
 okx:
   x402:
-    verify-url: ${OKX_X402_VERIFY_URL:https://api.okx.com/v1/x402/verify}
-    settle-url: ${OKX_X402_SETTLE_URL:https://api.okx.com/v1/x402/settle}
     api-key: ${OKX_API_KEY:}
     secret-key: ${OKX_SECRET_KEY:}
     passphrase: ${OKX_PASSPHRASE:}

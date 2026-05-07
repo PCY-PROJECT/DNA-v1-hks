@@ -42,6 +42,12 @@ public class CreatorService {
     @Value("${dnacloud.signing-key:}")
     private String signingKey;
 
+    @Value("${dnacloud.payment-address:}")
+    private String platformPaymentAddress;
+
+    @Value("${dnacloud.treasury-key:}")
+    private String treasuryKey;
+
     // ==================== Upload Session ====================
 
     @Transactional
@@ -203,7 +209,7 @@ public class CreatorService {
             .grossAmount(grossAmountMinimal)
             .currency(pkg.getPriceCurrency())
             .network(pkg.getPriceNetwork())
-            .platformReceiverAddress(System.getenv("DNACLOUD_PAYMENT_ADDRESS"))
+            .platformReceiverAddress(platformPaymentAddress)
             .okxReceiptJson(okxReceiptJson)
             .txHash(txHash)
             .status(PaymentReceiptEntity.PaymentStatus.settled)
@@ -440,15 +446,12 @@ public class CreatorService {
 
 
     private String attemptOnChainTransfer(String toAddress, long amount, String currency, String network) {
-        // In production: use web3j or OKX API to send on-chain transfer.
-        // For hackathon: if DNACLOUD_TREASURY_KEY is set, attempt transfer; otherwise return null (pending).
-        String treasuryKey = System.getenv("DNACLOUD_TREASURY_KEY");
         if (treasuryKey == null || treasuryKey.isBlank()) {
-            log.warn("[CreatorService.attemptOnChainTransfer] DNACLOUD_TREASURY_KEY not set, payout pending, address={}", toAddress);
+            log.warn("[CreatorService.attemptOnChainTransfer] DNACLOUD_TREASURY_KEY not configured, payout queued as pending, address={}", toAddress);
             return null;
         }
-        // TODO: real on-chain transfer
-        log.info("[CreatorService.attemptOnChainTransfer] treasury key present but on-chain transfer not implemented yet");
+        // On-chain transfer not yet implemented. Configure DNACLOUD_TREASURY_KEY to enable.
+        log.warn("[CreatorService.attemptOnChainTransfer] on-chain transfer not yet implemented, payout queued as pending, address={}", toAddress);
         return null;
     }
 }

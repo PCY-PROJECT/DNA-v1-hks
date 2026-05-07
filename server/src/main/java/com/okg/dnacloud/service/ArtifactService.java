@@ -27,6 +27,9 @@ public class ArtifactService {
     @Value("${dnacloud.artifact-store}")
     private String artifactStore;
 
+    @Value("${dnacloud.base-url:http://localhost:8080}")
+    private String baseUrl;
+
     @Value("${dnacloud.local-test-mode:false}")
     private boolean localTestMode;
 
@@ -64,7 +67,7 @@ public class ArtifactService {
             return ArtifactResponse.builder()
                     .packageId(packageId)
                     .version(version)
-                    .downloadUrl("http://localhost:8080/v1/dna/" + packageId + "/versions/" + version + "/download")
+                    .downloadUrl(baseUrl + "/v1/dna/" + packageId + "/versions/" + version + "/download")
                     .signature(loadSignature(packageId, version))
                     .sha256(sha256Test)
                     .paymentReceipt(testReceipt)
@@ -113,7 +116,7 @@ public class ArtifactService {
         ArtifactResponse response = ArtifactResponse.builder()
                 .packageId(packageId)
                 .version(version)
-                .downloadUrl("http://localhost:8080/v1/dna/" + packageId + "/versions/" + version + "/download")
+                .downloadUrl(baseUrl + "/v1/dna/" + packageId + "/versions/" + version + "/download")
                 .signature(signature)
                 .sha256(sha256)
                 .paymentReceipt(receipt)

@@ -5,6 +5,8 @@ import com.okg.dnacloud.entity.UploadSessionEntity;
 import com.okg.dnacloud.service.creator.CreatorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,13 +21,19 @@ public class CreatorController {
 
     private final CreatorService creatorService;
 
+    @Value("${dnacloud.admin-api-key:}")
+    private String adminApiKey;
+
+    private static final java.util.regex.Pattern WALLET_ADDRESS =
+            java.util.regex.Pattern.compile("^0x[0-9a-fA-F]{40}$");
+
     @PostMapping("/upload-session")
     public ResponseEntity<?> createUploadSession(@RequestBody Map<String, String> body) {
         log.info("[CreatorController.createUploadSession] start");
         String payoutAddress = body.get("payout_address");
         String packageHash = body.get("package_hash");
-        if (payoutAddress == null || !payoutAddress.startsWith("0x")) {
-            return ResponseEntity.badRequest().body(Map.of("error", "payout_address is required and must be 0x-prefixed"));
+        if (payoutAddress == null || !WALLET_ADDRESS.matcher(payoutAddress).matches()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "payout_address is required and must be a valid 0x-prefixed Ethereum address"));
         }
         UploadSessionEntity session = creatorService.createUploadSession(payoutAddress, packageHash);
         return ResponseEntity.ok(Map.of(
@@ -77,25 +85,45 @@ public class CreatorController {
 
     @GetMapping("/packages")
     public ResponseEntity<?> getCreatorPackages(@RequestParam("wallet") String wallet) {
+        if (!WALLET_ADDRESS.matcher(wallet).matches()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid wallet address"));
+        }
         log.info("[CreatorController.getCreatorPackages] wallet={}", wallet);
         return ResponseEntity.ok(Map.of("packages", creatorService.getCreatorPackages(wallet)));
     }
 
     @GetMapping("/earnings")
     public ResponseEntity<?> getEarnings(@RequestParam("wallet") String wallet) {
+        if (!WALLET_ADDRESS.matcher(wallet).matches()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid wallet address"));
+        }
         log.info("[CreatorController.getEarnings] wallet={}", wallet);
         return ResponseEntity.ok(creatorService.getEarnings(wallet));
     }
 
     @GetMapping("/payouts")
     public ResponseEntity<?> getPayouts(@RequestParam("wallet") String wallet) {
+        if (!WALLET_ADDRESS.matcher(wallet).matches()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid wallet address"));
+        }
         log.info("[CreatorController.getPayouts] wallet={}", wallet);
         return ResponseEntity.ok(creatorService.getPayouts(wallet));
     }
 
     @PostMapping("/admin/payouts/run-once")
-    public ResponseEntity<?> runPayoutWorker() {
-        log.info("[CreatorController.runPayoutWorker] triggered");
+    public ResponseEntity<?> runPayoutWorker(
+            @RequestHeader(value = "X-Admin-Api-Key", required = false) String requestKey) {
+        if (adminApiKey == null || adminApiKey.isBlank()) {
+            log.error("[CreatorController.runPayoutWorker] DNACLOUD_ADMIN_API_KEY not configured");
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "Admin endpoint not configured"));
+        }
+        if (!adminApiKey.equals(requestKey)) {
+            log.warn("[CreatorController.runPayoutWorker] unauthorized attempt");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Unauthorized"));
+        }
+        log.info("[CreatorController.runPayoutWorker] triggered by admin");
         return ResponseEntity.ok(creatorService.runPayoutWorkerOnce());
     }
 }

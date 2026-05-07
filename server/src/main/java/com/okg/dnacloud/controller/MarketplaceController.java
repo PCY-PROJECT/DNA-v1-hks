@@ -17,7 +17,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
-
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,12 @@ public class MarketplaceController {
     @Value("${dnacloud.artifact-store:./artifacts}")
     private String artifactStore;
 
+    @Value("${dnacloud.payment-address:}")
+    private String paymentAddress;
+
+    private static final java.util.regex.Pattern SAFE_ID = java.util.regex.Pattern.compile("^[a-z0-9][a-z0-9\\-]{0,63}$");
+    private static final java.util.regex.Pattern SAFE_VER = java.util.regex.Pattern.compile("^\\d+\\.\\d+\\.\\d+([\\-+][a-zA-Z0-9.]+)?$");
+
     @GetMapping("/search")
     public ResponseEntity<List<DnaPackageInfo>> search(@RequestParam(defaultValue = "") String q) {
         log.info("[MarketplaceController.search] q={}", q);
@@ -43,6 +50,9 @@ public class MarketplaceController {
 
     @GetMapping("/{packageId}")
     public ResponseEntity<DnaPackageInfo> getPackage(@PathVariable String packageId) {
+        if (!SAFE_ID.matcher(packageId).matches()) {
+            return ResponseEntity.badRequest().build();
+        }
         log.info("[MarketplaceController.getPackage] packageId={}", packageId);
         DnaPackageInfo pkg = marketplaceService.getById(packageId);
         if (pkg == null) {
@@ -56,6 +66,10 @@ public class MarketplaceController {
             @PathVariable String packageId,
             @PathVariable String version,
             @RequestHeader(value = "X-Payment-Credential", required = false) String paymentCredential) {
+
+        if (!SAFE_ID.matcher(packageId).matches() || !SAFE_VER.matcher(version).matches()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid package id or version"));
+        }
 
         log.info("[MarketplaceController.getArtifact] packageId={}, version={}, hasCredential={}", packageId, version, paymentCredential != null);
 
@@ -85,8 +99,22 @@ public class MarketplaceController {
     public ResponseEntity<FileSystemResource> downloadArtifact(
             @PathVariable String packageId,
             @PathVariable String version) {
+
+        if (!SAFE_ID.matcher(packageId).matches() || !SAFE_VER.matcher(version).matches()) {
+            return ResponseEntity.badRequest().build();
+        }
+
         log.info("[MarketplaceController.downloadArtifact] packageId={}, version={}", packageId, version);
-        File zipFile = new File(artifactStore + "/" + packageId + "/" + version + "/package.zip");
+
+        // Resolve and verify path stays within artifact store (prevent traversal)
+        Path base = Paths.get(artifactStore).toAbsolutePath().normalize();
+        Path target = base.resolve(packageId).resolve(version).resolve("package.zip").normalize();
+        if (!target.startsWith(base)) {
+            log.error("[MarketplaceController.downloadArtifact] path traversal attempt, packageId={}, version={}", packageId, version);
+            return ResponseEntity.badRequest().build();
+        }
+
+        File zipFile = target.toFile();
         if (!zipFile.exists()) {
             return ResponseEntity.notFound().build();
         }
@@ -98,7 +126,7 @@ public class MarketplaceController {
 
     private X402PaymentChallenge buildChallenge(PaymentRequiredException e) {
         return X402PaymentChallenge.builder()
-                .payTo(System.getenv().getOrDefault("DNACLOUD_PAYMENT_ADDRESS", ""))
+                .payTo(paymentAddress)
                 .amount(e.getPackageInfo().getPrice().getAmount())
                 .currency(e.getPackageInfo().getPrice().getCurrency())
                 .network(e.getPackageInfo().getPrice().getNetwork())
