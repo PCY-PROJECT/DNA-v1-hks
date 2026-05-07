@@ -64,9 +64,9 @@ public class MarketplaceService {
                 ))
                 .notGuaranteed(List.of("profitability", "win_rate", "investment_advice", "risk_free_trading"))
                 .price(DnaPrice.builder()
-                    .amount("9.99")
-                    .currency("USDT")
-                    .network("OKC")
+                    .amount("0.001")
+                    .currency("USDG")
+                    .network("xlayer")
                     .build())
                 .build()
         );

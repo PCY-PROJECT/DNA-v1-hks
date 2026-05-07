@@ -25,11 +25,8 @@ public class ArtifactService {
     @Value("${dnacloud.artifact-store}")
     private String artifactStore;
 
-    @Value("${dnacloud.demo-mode:false}")
-    private boolean demoMode;
-
     public ArtifactResponse acquireWithPayment(String packageId, String version, String paymentCredential) {
-        log.info("[ArtifactService.acquireWithPayment] start, packageId={}, version={}, demoMode={}", packageId, version, demoMode);
+        log.info("[ArtifactService.acquireWithPayment] start, packageId={}, version={}", packageId, version);
 
         DnaPackageInfo pkg = marketplaceService.getById(packageId);
         if (pkg == null) {
@@ -43,38 +40,22 @@ public class ArtifactService {
 
         String resource = "/v1/dna/" + packageId + "/versions/" + version + "/artifact";
 
-        X402VerifyResult verifyResult;
-        String settlementRef;
+        X402VerifyResult verifyResult = x402Client.verify(
+            paymentCredential,
+            resource,
+            pkg.getPrice().getAmount(),
+            pkg.getPrice().getCurrency()
+        );
 
-        if (demoMode) {
-            log.info("[ArtifactService.acquireWithPayment] DEMO MODE — skipping real OKX x402 verify/settle");
-            verifyResult = X402VerifyResult.builder()
-                    .valid(true)
-                    .txHash("demo-tx-" + System.currentTimeMillis())
-                    .payer("demo-payer")
-                    .amount(pkg.getPrice().getAmount())
-                    .currency(pkg.getPrice().getCurrency())
-                    .network(pkg.getPrice().getNetwork())
-                    .build();
-            settlementRef = "demo-settlement-" + System.currentTimeMillis();
-        } else {
-            verifyResult = x402Client.verify(
-                paymentCredential,
-                resource,
-                pkg.getPrice().getAmount(),
-                pkg.getPrice().getCurrency()
-            );
+        if (!verifyResult.isValid()) {
+            log.error("[ArtifactService.acquireWithPayment] payment verify failed, error={}", verifyResult.getErrorMessage());
+            throw new IllegalStateException("OKX x402 payment verification failed: " + verifyResult.getErrorMessage());
+        }
 
-            if (!verifyResult.isValid()) {
-                log.error("[ArtifactService.acquireWithPayment] payment verify failed, error={}", verifyResult.getErrorMessage());
-                throw new IllegalStateException("OKX x402 payment verification failed: " + verifyResult.getErrorMessage());
-            }
-
-            settlementRef = x402Client.settle(paymentCredential, verifyResult.getTxHash());
-            if (settlementRef == null) {
-                log.error("[ArtifactService.acquireWithPayment] payment settle failed");
-                throw new IllegalStateException("OKX x402 payment settlement failed");
-            }
+        String settlementRef = x402Client.settle(paymentCredential, verifyResult.getTxHash());
+        if (settlementRef == null) {
+            log.error("[ArtifactService.acquireWithPayment] payment settle failed");
+            throw new IllegalStateException("OKX x402 payment settlement failed");
         }
 
         String artifactPath = resolveArtifactPath(packageId, version);

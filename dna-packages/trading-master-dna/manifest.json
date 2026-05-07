@@ -23,9 +23,9 @@
     "risk_free_trading"
   ],
   "price": {
-    "amount": "9.99",
-    "currency": "USDT",
-    "network": "OKC"
+    "amount": "0.001",
+    "currency": "USDG",
+    "network": "xlayer"
   },
   "components": {
     "skills": ["skills/trading-master/SKILL.md"],

@@ -41,11 +41,14 @@ export async function initCommand(options: InitOptions): Promise<void> {
     ? JSON.parse(fs.readFileSync(mcpJsonPath, 'utf-8')) as Record<string, unknown>
     : {};
   const servers = (mcpConfig.mcpServers as Record<string, unknown>) ?? {};
-  servers['dnacloud-marketplace'] = {
-    command: 'npx',
-    args: ['-y', '@dnacloud/mcp-server'],
-    env: { DNACLOUD_MARKETPLACE_URL: options.marketplaceUrl },
-  };
+
+  // 优先使用本地构建的 MCP server（本地开发/hackathon 场景）
+  const localMcpPath = path.resolve(import.meta.dirname, '../../../mcp-server/dist/index.js');
+  const mcpEntry = fs.existsSync(localMcpPath)
+    ? { command: 'node', args: [localMcpPath], env: { DNACLOUD_MARKETPLACE_URL: options.marketplaceUrl } }
+    : { command: 'npx', args: ['-y', '@dnacloud/mcp-server'], env: { DNACLOUD_MARKETPLACE_URL: options.marketplaceUrl } };
+
+  servers['dnacloud-marketplace'] = mcpEntry;
   mcpConfig.mcpServers = servers;
   fs.writeFileSync(mcpJsonPath, JSON.stringify(mcpConfig, null, 2) + '\n');
 

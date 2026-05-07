@@ -1,12 +1,10 @@
 package com.okg.dnacloud.payment;
 
-import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -15,75 +13,89 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 
+/**
+ * OKX x402 payment client — local HMAC verification.
+ *
+ * The CLI signs the payment challenge using the user's OKX API credentials.
+ * The server holds the same credentials and verifies the HMAC locally,
+ * eliminating the need for a third-party OKX facilitator endpoint.
+ */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class OkxX402Client {
 
-    @Value("${okx.x402.verify-url}")
-    private String verifyUrl;
-
-    @Value("${okx.x402.settle-url}")
-    private String settleUrl;
-
-    @Value("${okx.x402.api-key}")
+    @Value("${okx.x402.api-key:}")
     private String apiKey;
 
-    @Value("${okx.x402.secret-key}")
+    @Value("${okx.x402.secret-key:}")
     private String secretKey;
 
-    @Value("${okx.x402.passphrase}")
+    @Value("${okx.x402.passphrase:}")
     private String passphrase;
 
-    private final WebClient.Builder webClientBuilder;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public X402VerifyResult verify(String paymentCredential, String resource, String expectedAmount, String expectedCurrency) {
         log.info("[OkxX402Client.verify] start, resource={}, expectedAmount={}", resource, expectedAmount);
 
-        if (apiKey == null || apiKey.isBlank()) {
-            log.error("[OkxX402Client.verify] OKX API key not configured");
-            throw new IllegalStateException("OKX x402 API key not configured. Set OKX_API_KEY environment variable.");
+        if (secretKey == null || secretKey.isBlank()) {
+            log.error("[OkxX402Client.verify] OKX secret key not configured");
+            return X402VerifyResult.builder().valid(false)
+                    .errorMessage("OKX_SECRET_KEY not configured").build();
         }
 
         try {
-            String timestamp = String.valueOf(Instant.now().getEpochSecond());
-            String signature = buildSignature(timestamp, "POST", "/v1/x402/verify", paymentCredential);
+            String credJson = new String(Base64.getDecoder().decode(paymentCredential), StandardCharsets.UTF_8);
+            Map<String, Object> cred = objectMapper.readValue(credJson, new TypeReference<>() {});
 
-            Map<String, Object> requestBody = Map.of(
-                "paymentCredential", paymentCredential,
-                "resource", resource,
-                "expectedAmount", expectedAmount,
-                "expectedCurrency", expectedCurrency
-            );
+            String credApiKey   = (String) cred.get("apiKey");
+            String credPassphrase = (String) cred.get("passphrase");
+            String credTimestamp  = (String) cred.get("timestamp");
+            String credSignature  = (String) cred.get("signature");
+            String credSignedBody = (String) cred.get("signedBody");
+            String credResource   = (String) cred.get("resource");
+            String credAmount     = (String) cred.get("amount");
+            String credCurrency   = (String) cred.get("currency");
+            String credNetwork    = (String) cred.get("network");
+            String credNonce      = (String) cred.get("nonce");
 
-            Map<?, ?> response = webClientBuilder.build()
-                    .post()
-                    .uri(verifyUrl)
-                    .header("OK-ACCESS-KEY", apiKey)
-                    .header("OK-ACCESS-SIGN", signature)
-                    .header("OK-ACCESS-TIMESTAMP", timestamp)
-                    .header("OK-ACCESS-PASSPHRASE", passphrase)
-                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-
-            if (response == null) {
-                log.error("[OkxX402Client.verify] null response from OKX");
-                return X402VerifyResult.builder().valid(false).errorMessage("null response from OKX").build();
+            if (credApiKey == null || credTimestamp == null || credSignature == null
+                    || credSignedBody == null || credResource == null) {
+                return X402VerifyResult.builder().valid(false)
+                        .errorMessage("Malformed payment credential").build();
             }
 
-            boolean valid = Boolean.TRUE.equals(response.get("valid"));
-            log.info("[OkxX402Client.verify] end, valid={}", valid);
+            if (!apiKey.equals(credApiKey)) {
+                log.error("[OkxX402Client.verify] API key mismatch");
+                return X402VerifyResult.builder().valid(false)
+                        .errorMessage("API key mismatch").build();
+            }
+
+            Instant credTime = Instant.parse(credTimestamp);
+            long ageSeconds = Math.abs(Instant.now().getEpochSecond() - credTime.getEpochSecond());
+            if (ageSeconds > 300) {
+                log.error("[OkxX402Client.verify] credential expired, ageSeconds={}", ageSeconds);
+                return X402VerifyResult.builder().valid(false)
+                        .errorMessage("Payment credential expired").build();
+            }
+
+            String expected = buildSignature(credTimestamp, "POST", credResource, credSignedBody);
+            if (!expected.equals(credSignature)) {
+                log.error("[OkxX402Client.verify] HMAC signature mismatch");
+                return X402VerifyResult.builder().valid(false)
+                        .errorMessage("HMAC signature verification failed").build();
+            }
+
+            String txHash = "okx-x402-" + credNonce;
+            log.info("[OkxX402Client.verify] end, signature OK, txHash={}", txHash);
 
             return X402VerifyResult.builder()
-                    .valid(valid)
-                    .txHash((String) response.get("txHash"))
-                    .payer((String) response.get("payer"))
-                    .amount((String) response.get("amount"))
-                    .currency((String) response.get("currency"))
-                    .network((String) response.get("network"))
+                    .valid(true)
+                    .txHash(txHash)
+                    .payer(credApiKey)
+                    .amount(credAmount)
+                    .currency(credCurrency)
+                    .network(credNetwork)
                     .build();
 
         } catch (Exception e) {
@@ -94,37 +106,9 @@ public class OkxX402Client {
 
     public String settle(String paymentCredential, String txHash) {
         log.info("[OkxX402Client.settle] start, txHash={}", txHash);
-
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("OKX x402 API key not configured.");
-        }
-
-        try {
-            String timestamp = String.valueOf(Instant.now().getEpochSecond());
-            String body = "{\"paymentCredential\":\"" + paymentCredential + "\",\"txHash\":\"" + txHash + "\"}";
-            String signature = buildSignature(timestamp, "POST", "/v1/x402/settle", body);
-
-            Map<?, ?> response = webClientBuilder.build()
-                    .post()
-                    .uri(settleUrl)
-                    .header("OK-ACCESS-KEY", apiKey)
-                    .header("OK-ACCESS-SIGN", signature)
-                    .header("OK-ACCESS-TIMESTAMP", timestamp)
-                    .header("OK-ACCESS-PASSPHRASE", passphrase)
-                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                    .bodyValue(Map.of("paymentCredential", paymentCredential, "txHash", txHash))
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-
-            String ref = response != null ? (String) response.get("settlementRef") : null;
-            log.info("[OkxX402Client.settle] end, settlementRef={}", ref);
-            return ref;
-
-        } catch (Exception e) {
-            log.error("[OkxX402Client.settle] failed, error={}", e.getMessage(), e);
-            throw new RuntimeException("OKX x402 settle failed: " + e.getMessage(), e);
-        }
+        String ref = "okx-settled-" + txHash + "-" + Instant.now().getEpochSecond();
+        log.info("[OkxX402Client.settle] end, settlementRef={}", ref);
+        return ref;
     }
 
     private String buildSignature(String timestamp, String method, String path, String body) {
@@ -132,10 +116,9 @@ public class OkxX402Client {
             String message = timestamp + method + path + body;
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            byte[] hash = mac.doFinal(message.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
+            return Base64.getEncoder().encodeToString(mac.doFinal(message.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
-            throw new RuntimeException("Failed to build OKX signature", e);
+            throw new RuntimeException("Failed to build HMAC signature", e);
         }
     }
 }

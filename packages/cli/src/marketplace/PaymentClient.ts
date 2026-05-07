@@ -17,7 +17,7 @@ export class PaymentClient {
     const timestamp = new Date().toISOString();
     const method = 'POST';
     const path = challenge.resource;
-    const body = JSON.stringify({
+    const signedBody = JSON.stringify({
       nonce: challenge.nonce,
       amount: challenge.amount,
       currency: challenge.currency,
@@ -25,7 +25,7 @@ export class PaymentClient {
       payTo: challenge.payTo,
     });
 
-    const signature = this.buildOkxSignature(timestamp, method, path, body);
+    const signature = this.buildOkxSignature(timestamp, method, path, signedBody);
 
     const credential = Buffer.from(JSON.stringify({
       scheme: challenge.scheme,
@@ -33,6 +33,7 @@ export class PaymentClient {
       timestamp,
       signature,
       passphrase: this.config.passphrase,
+      signedBody,
       nonce: challenge.nonce,
       amount: challenge.amount,
       currency: challenge.currency,
