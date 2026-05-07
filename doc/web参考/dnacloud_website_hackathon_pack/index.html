@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DNAcloud - Claude Code Expert Capability Marketplace</title>
+  <meta name="description" content="DNAcloud is a Claude Code capability marketplace powered by OKX x402. Install Skills, Agents, MCP, Hooks, Rules, and Tests into your current project." />
+  <style>
+    :root {
+      --bg: #070A12;
+      --panel: #111827;
+      --panel2: #0D1322;
+      --border: #263244;
+      --text: #F8FAFC;
+      --muted: #A7B0C0;
+      --green: #66F2C2;
+      --blue: #6EA8FF;
+      --purple: #B794F4;
+      --warning: #FFD166;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at top left, rgba(102,242,194,.18), transparent 32%), radial-gradient(circle at top right, rgba(110,168,255,.18), transparent 35%), var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    nav { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(16px); background: rgba(7,10,18,.78); border-bottom: 1px solid rgba(255,255,255,.08); }
+    .nav-inner { max-width: 1180px; margin: 0 auto; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -0.04em; font-size: 20px; }
+    .logo { width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(135deg, var(--green), var(--blue), var(--purple)); box-shadow: 0 0 35px rgba(102,242,194,.4); }
+    .nav-links { display: flex; gap: 18px; color: var(--muted); font-size: 14px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--text); font-weight: 700; }
+    .btn.primary { background: linear-gradient(135deg, var(--green), var(--blue)); color: #041018; border: none; }
+    .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+    .hero { padding: 92px 0 54px; display: grid; grid-template-columns: 1.05fr .95fr; gap: 44px; align-items: center; }
+    .eyebrow { display: inline-flex; padding: 8px 12px; border-radius: 999px; border: 1px solid rgba(102,242,194,.35); color: var(--green); background: rgba(102,242,194,.08); font-size: 13px; font-weight: 700; }
+    h1 { font-size: clamp(42px, 7vw, 76px); line-height: .94; margin: 20px 0; letter-spacing: -0.07em; }
+    h2 { font-size: clamp(30px, 4vw, 48px); letter-spacing: -0.055em; margin: 0 0 14px; }
+    h3 { margin: 0 0 8px; font-size: 20px; letter-spacing: -0.03em; }
+    p { color: var(--muted); line-height: 1.72; font-size: 16px; }
+    .hero p { font-size: 18px; max-width: 680px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+    .terminal { border: 1px solid var(--border); border-radius: 22px; background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); box-shadow: 0 20px 80px rgba(0,0,0,.45); overflow: hidden; }
+    .terminal-top { height: 44px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; padding: 0 16px; color: var(--muted); font-size: 13px; }
+    .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--green); opacity: .8; }
+    pre { margin: 0; padding: 22px; color: #D9FBEF; font-family: "JetBrains Mono", Menlo, monospace; font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+    .section { padding: 68px 0; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 28px; }
+    .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; margin-top: 28px; }
+    .card { border: 1px solid var(--border); border-radius: 22px; background: rgba(17,24,39,.74); padding: 24px; min-height: 172px; }
+    .card .num { color: var(--green); font-weight: 800; font-size: 14px; }
+    .pillrow { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .pill { border: 1px solid var(--border); padding: 8px 10px; border-radius: 999px; color: var(--muted); font-size: 13px; background: rgba(255,255,255,.03); }
+    .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 24px; }
+    .step { border: 1px solid var(--border); border-radius: 18px; padding: 18px; background: var(--panel2); }
+    .whitepaper { border: 1px solid rgba(102,242,194,.28); border-radius: 28px; background: linear-gradient(135deg, rgba(102,242,194,.08), rgba(110,168,255,.06)); padding: 34px; }
+    .footer { padding: 44px 0; color: var(--muted); border-top: 1px solid rgba(255,255,255,.08); }
+    code { color: var(--green); }
+    @media (max-width: 860px) { .hero, .grid2 { grid-template-columns: 1fr; } .grid3, .flow { grid-template-columns: 1fr; } .nav-links { display: none; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <div class="brand"><div class="logo"></div>DNAcloud</div>
+      <div class="nav-links">
+        <a href="#solution">Solution</a>
+        <a href="#demo">Demo</a>
+        <a href="#creator">Creator</a>
+        <a href="#whitepaper">Whitepaper</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Claude Code × OKX x402 × Agent Capability Marketplace</div>
+        <h1>Turn Claude Code into any expert agent.</h1>
+        <p>用户只需要说出想要什么专家，DNAcloud 就会通过 OKX x402 购买并安装对应的 Skill、Agent、MCP、Hook、规则、命令和测试。</p>
+        <div class="actions">
+          <a class="btn primary" href="#demo">View Hackathon Demo</a>
+          <a class="btn" href="#whitepaper">Read Whitepaper</a>
+          <a class="btn" href="#creator">Upload DNA</a>
+        </div>
+        <div class="pillrow">
+          <span class="pill">Skills</span><span class="pill">Subagents</span><span class="pill">MCP</span><span class="pill">Hooks</span><span class="pill">x402 Payments</span>
+        </div>
+      </div>
+      <div class="terminal">
+        <div class="terminal-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span>Claude Code</div>
+        <pre>$ dnacloud init
+✓ DNAcloud Bootstrap installed
+
+User: 我要一个交易大师
+
+DNAcloud: Found Trading Master DNA
+Includes: Skills, Agents, MCP, Hooks, Rules, Tests
+Price: 1 USDT via OKX x402
+
+402 Payment Required → signed → verified
+✓ DNA package installed
+✓ Conformance tests passed
+Status: active</pre>
+      </div>
+    </section>
+
+    <section class="section" id="problem">
+      <h2>Claude Code is powerful. Expert setup is hard.</h2>
+      <p>一个小白想让 Claude Code 成为交易大师，不能只靠一句 prompt。他需要配置 Skills、Subagents、MCP、Hooks、风险规则、订单预览和测试。这是一整套 agent engineering。</p>
+      <div class="grid3">
+        <div class="card"><div class="num">01</div><h3>Users don't know setup</h3><p>普通用户不会手写 Skill、配置 MCP、编写 Hook 或设计专业工作流。</p></div>
+        <div class="card"><div class="num">02</div><h3>Creators can't monetize</h3><p>专家可以卖课或 prompt，但很难把自己的能力安装到用户的 Claude Code 项目里。</p></div>
+        <div class="card"><div class="num">03</div><h3>Agents need native payments</h3><p>AI Agent 需要按次购买资源和能力，而不是传统账号、订阅和手动支付流程。</p></div>
+      </div>
+    </section>
+
+    <section class="section" id="solution">
+      <h2>DNA packages are installable capabilities, not prompts.</h2>
+      <p>DNA 包是 Claude Code 的能力包，可以包含 Skills、Agents、Commands、MCP、Hooks、Rules、Tests、CLAUDE.md patch、manifest 和签名。</p>
+      <div class="grid2">
+        <div class="card">
+          <h3>Buyer flow</h3>
+          <p>用户说“我要一个交易大师” → DNAcloud 搜索市场 → OKX x402 支付 → 下载签名包 → 安装到当前项目 → verify。</p>
+        </div>
+        <div class="card" id="creator">
+          <h3>Creator flow</h3>
+          <p>创作者上传 DNA 包和收款地址 → 自动审核 → 上架 → 买家购买 → 平台公共账户收款 → 异步结算给创作者。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="demo">
+      <h2>Hackathon Demo: Trading Master DNA</h2>
+      <p>Trading Master DNA 是第一期官方包。它不承诺盈利，而是证明复杂专家能力可以被购买、安装和验证。</p>
+      <div class="flow">
+        <div class="step"><b>1. Init</b><p><code>dnacloud init</code></p></div>
+        <div class="step"><b>2. Ask</b><p>“我要一个交易大师”</p></div>
+        <div class="step"><b>3. Pay</b><p>OKX x402 付款获取 DNA 包</p></div>
+        <div class="step"><b>4. Install</b><p>Skills、Agents、MCP、Hooks、Rules、Tests</p></div>
+      </div>
+    </section>
+
+    <section class="section" id="whitepaper">
+      <div class="whitepaper">
+        <h2>Whitepaper Summary</h2>
+        <p>DNAcloud 的愿景是成为 AI Agent 能力分发层。用户不应该学习复杂的 Claude Code 配置才能获得专家 agent；创作者也不应该只能卖教程和 prompt。DNAcloud 让专家能力变成可安装、可支付、可验证、可分发的 DNA 包。</p>
+        <div class="grid3">
+          <div class="card"><h3>Capability Layer</h3><p>DNA 包安装真实 Claude Code 组件，而不是只传递文字。</p></div>
+          <div class="card"><h3>Payment Layer</h3><p>OKX x402 用于资源请求、支付要求、签名重试和资源交付。</p></div>
+          <div class="card"><h3>Creator Economy</h3><p>创作者上传 DNA 包，买家购买后平台异步结算给创作者地址。</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">DNAcloud Hackathon Edition · Claude Code capability marketplace powered by OKX x402</div>
+  </footer>
+</body>
+</html>
