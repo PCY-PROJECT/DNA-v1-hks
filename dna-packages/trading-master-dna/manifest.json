@@ -2,7 +2,7 @@
   "schemaVersion": "dnacloud.package.v1",
   "id": "trading-master-dna",
   "name": "Trading Master DNA",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "domain": "trading",
   "packageType": "official-capability-pack",
   "objective": "install trading capabilities into Claude Code, not optimize profitability",
@@ -33,7 +33,9 @@
     "network": "xlayer"
   },
   "components": {
-    "skills": ["skills/trading-master/SKILL.md"],
+    "skills": [
+      "skills/trading-master/SKILL.md"
+    ],
     "agents": [
       "agents/market-analyst.md",
       "agents/portfolio-manager.md",
@@ -53,9 +55,18 @@
       "mcp/account-read.mcp.json",
       "mcp/order-execution.mcp.json"
     ],
-    "hooks": ["hooks/pre-tool-use-trade-guard.json"],
-    "rules": ["rules/machine-rules.json", "rules/permissions.json"],
-    "claude": ["claude/CLAUDE.patch.md"],
-    "tests": ["tests/conformance-tests.json"]
+    "hooks": [
+      "hooks/pre-tool-use-trade-guard.json"
+    ],
+    "rules": [
+      "rules/machine-rules.json",
+      "rules/permissions.json"
+    ],
+    "claude": [
+      "claude/CLAUDE.patch.md"
+    ],
+    "tests": [
+      "tests/conformance-tests.json"
+    ]
   }
 }

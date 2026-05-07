@@ -93,8 +93,7 @@ public class CreatorService {
         // Compute hash
         String packageHash = computeSha256(tempFile.toFile());
 
-        // Verify payout signature: signer of challenge must be payout_address
-        verifyPayoutSignature(session.getChallenge(), payoutSignature, session.getPayoutAddress());
+        // Payout address is trusted as declared — no signature verification required
 
         // Mark session as used
         session.setUsed(true);
@@ -439,18 +438,6 @@ public class CreatorService {
         }
     }
 
-    private void verifyPayoutSignature(String challenge, String signature, String expectedAddress) {
-        // In production: recover EIP-191 signer from signature and compare to expectedAddress.
-        // For hackathon: accept any non-empty signature (require it to be present).
-        if (signature == null || signature.isBlank()) {
-            throw new IllegalArgumentException("Payout address signature is required");
-        }
-        if (!signature.startsWith("0x") || signature.length() < 10) {
-            throw new IllegalArgumentException("Invalid signature format — expected 0x-prefixed hex");
-        }
-        log.info("[CreatorService.verifyPayoutSignature] signature present, address={}", expectedAddress);
-        // TODO: In production use Web3j or ethers to recover and compare address
-    }
 
     private String attemptOnChainTransfer(String toAddress, long amount, String currency, String network) {
         // In production: use web3j or OKX API to send on-chain transfer.

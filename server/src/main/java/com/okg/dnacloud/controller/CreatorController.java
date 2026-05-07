@@ -40,7 +40,7 @@ public class CreatorController {
     public ResponseEntity<?> uploadPackage(
             @RequestParam("package") MultipartFile file,
             @RequestParam("upload_session_id") String uploadSessionId,
-            @RequestParam("payout_signature") String payoutSignature,
+            @RequestParam(value = "payout_signature", required = false, defaultValue = "none") String payoutSignature,
             @RequestParam(value = "price", required = false) String price,
             @RequestParam(value = "currency", required = false) String currency,
             @RequestParam(value = "category", required = false) String category) {

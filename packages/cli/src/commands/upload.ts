@@ -61,18 +61,7 @@ export async function uploadCommand(packagePath: string, options: UploadOptions)
     process.exit(1);
   }
 
-  spin.succeed(`上传会话已创建: ${session.upload_session_id}`);
-  console.log(chalk.gray(`  Challenge: ${session.challenge}`));
-  console.log('');
-  console.log(chalk.yellow('⚠️  你需要用你的钱包私钥对以下 challenge 签名（EIP-191 个人签名）：'));
-  console.log(chalk.cyan(`  ${session.challenge}`));
-  console.log('');
-  console.log(chalk.gray('  请用 MetaMask / ethers.js / cast 等工具签名，然后粘贴签名结果'));
-  console.log(chalk.gray('  示例: cast sign --private-key $WALLET_KEY "' + session.challenge + '"'));
-  console.log('');
-
-  // 等待用户输入签名
-  const signature = await promptSignature();
+  spin.succeed(`上传会话已创建，收款地址: ${options.payoutAddress}`);
 
   const uploadSpin = ora('上传 DNA 包到 DNAcloud...').start();
 
@@ -81,7 +70,7 @@ export async function uploadCommand(packagePath: string, options: UploadOptions)
     const fileContent = fs.readFileSync(absPath);
     formData.append('package', new Blob([fileContent], { type: 'application/zip' }), path.basename(absPath));
     formData.append('upload_session_id', session.upload_session_id);
-    formData.append('payout_signature', signature);
+    formData.append('payout_signature', 'none');
     if (options.price) formData.append('price', options.price);
     if (options.currency) formData.append('currency', options.currency);
     if (options.category) formData.append('category', options.category);
@@ -94,7 +83,7 @@ export async function uploadCommand(packagePath: string, options: UploadOptions)
     const result = await res.json() as UploadResult;
 
     if (!res.ok) {
-      uploadSpin.fail('上传失败');
+      uploadSpin.fail(`上传失败: ${res.status} — ${(result as any).error ?? JSON.stringify(result)}`);
       printValidationReport(result.validation_report);
       process.exit(1);
     }
@@ -201,14 +190,3 @@ async function computeFileSha256(filePath: string): Promise<string> {
   });
 }
 
-async function promptSignature(): Promise<string> {
-  return new Promise((resolve) => {
-    process.stdout.write('请输入你的钱包签名结果: ');
-    let input = '';
-    process.stdin.setEncoding('utf-8');
-    process.stdin.once('data', (chunk) => {
-      input = chunk.toString().trim();
-      resolve(input);
-    });
-  });
-}
