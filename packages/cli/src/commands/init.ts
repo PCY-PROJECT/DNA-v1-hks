@@ -78,9 +78,12 @@ export async function initCommand(options: InitOptions): Promise<void> {
   }
 
   spin.text = '安装 Bootstrap skill 文件...';
-  const bootstrapSrc = path.resolve(import.meta.dirname, '../../../dna-packages/bootstrap/.claude');
+  // dist/commands/ → dist/ → cli/ → packages/ → repo-root → dna-packages/
+  const bootstrapSrc = path.resolve(import.meta.dirname, '../../../../dna-packages/bootstrap/.claude');
   if (fs.existsSync(bootstrapSrc)) {
     copyDir(bootstrapSrc, claudeDir);
+  } else {
+    spin.warn(`Bootstrap 源目录未找到: ${bootstrapSrc}`);
   }
 
   spin.succeed('DNAcloud Bootstrap 初始化完成！');

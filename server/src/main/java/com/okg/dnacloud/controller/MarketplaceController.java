@@ -8,9 +8,15 @@ import com.okg.dnacloud.service.MarketplaceService;
 import com.okg.dnacloud.service.PaymentRequiredException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.File;
 
 import java.time.Instant;
 import java.util.List;
@@ -25,6 +31,9 @@ public class MarketplaceController {
 
     private final MarketplaceService marketplaceService;
     private final ArtifactService artifactService;
+
+    @Value("${dnacloud.artifact-store:./artifacts}")
+    private String artifactStore;
 
     @GetMapping("/search")
     public ResponseEntity<List<DnaPackageInfo>> search(@RequestParam(defaultValue = "") String q) {
@@ -70,6 +79,21 @@ public class MarketplaceController {
             return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
                     .body(Map.of("error", "payment_failed", "message", e.getMessage()));
         }
+    }
+
+    @GetMapping("/{packageId}/versions/{version}/download")
+    public ResponseEntity<FileSystemResource> downloadArtifact(
+            @PathVariable String packageId,
+            @PathVariable String version) {
+        log.info("[MarketplaceController.downloadArtifact] packageId={}, version={}", packageId, version);
+        File zipFile = new File(artifactStore + "/" + packageId + "/" + version + "/package.zip");
+        if (!zipFile.exists()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + packageId + "-" + version + ".zip\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(new FileSystemResource(zipFile));
     }
 
     private X402PaymentChallenge buildChallenge(PaymentRequiredException e) {

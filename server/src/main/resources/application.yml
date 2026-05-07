@@ -8,6 +8,7 @@ spring:
 dnacloud:
   artifact-store: ${DNACLOUD_ARTIFACT_STORE:./artifacts}
   signing-key: ${DNACLOUD_SIGNING_KEY:}
+  demo-mode: ${DNACLOUD_DEMO_MODE:false}
 
 okx:
   x402:

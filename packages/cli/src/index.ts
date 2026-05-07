@@ -22,6 +22,7 @@ program
   .description('Install a DNA package from the marketplace')
   .option('--version <version>', 'Package version', 'latest')
   .option('--marketplace-url <url>', 'DNAcloud marketplace URL', 'https://api.dnacloud.okg.com')
+  .option('-y, --yes', 'Skip confirmation prompts')
   .action(installCommand);
 
 program

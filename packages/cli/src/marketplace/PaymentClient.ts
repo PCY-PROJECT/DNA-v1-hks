@@ -1,51 +1,58 @@
+import { createHmac } from 'node:crypto';
 import type { PaymentChallenge } from './MarketplaceClient.js';
 
-export interface OkxX402Config {
-  walletAddress: string;
-  privateKey?: string;
+export interface OkxApiConfig {
+  apiKey: string;
+  secretKey: string;
+  passphrase: string;
 }
 
 export class PaymentClient {
-  constructor(private readonly config: OkxX402Config) {}
+  constructor(private readonly config: OkxApiConfig) {}
 
   async signAndPay(challenge: PaymentChallenge): Promise<string> {
     this.validateConfig();
     this.validateChallenge(challenge);
 
-    const payload = {
-      scheme: challenge.scheme,
-      payTo: challenge.payTo,
+    const timestamp = new Date().toISOString();
+    const method = 'POST';
+    const path = challenge.resource;
+    const body = JSON.stringify({
+      nonce: challenge.nonce,
       amount: challenge.amount,
       currency: challenge.currency,
       network: challenge.network,
-      resource: challenge.resource,
+      payTo: challenge.payTo,
+    });
+
+    const signature = this.buildOkxSignature(timestamp, method, path, body);
+
+    const credential = Buffer.from(JSON.stringify({
+      scheme: challenge.scheme,
+      apiKey: this.config.apiKey,
+      timestamp,
+      signature,
+      passphrase: this.config.passphrase,
       nonce: challenge.nonce,
-      payer: this.config.walletAddress,
-      timestamp: Date.now(),
-    };
-
-    const signature = await this.signPayload(payload);
-
-    const credential = Buffer.from(
-      JSON.stringify({ ...payload, signature })
-    ).toString('base64');
+      amount: challenge.amount,
+      currency: challenge.currency,
+      network: challenge.network,
+      payTo: challenge.payTo,
+      resource: challenge.resource,
+    })).toString('base64');
 
     return credential;
   }
 
   private validateConfig(): void {
-    if (!this.config.walletAddress) {
-      throw new Error(
-        'OKX wallet address not configured.\n' +
-        'Set DNACLOUD_WALLET_ADDRESS environment variable.'
-      );
+    if (!this.config.apiKey) {
+      throw new Error('OKX API key not configured. Set OKX_API_KEY environment variable.');
     }
-    if (!this.config.privateKey) {
-      throw new Error(
-        'OKX private key not configured.\n' +
-        'Set DNACLOUD_PRIVATE_KEY environment variable.\n' +
-        'Never hardcode private keys in code or config files.'
-      );
+    if (!this.config.secretKey) {
+      throw new Error('OKX secret key not configured. Set OKX_SECRET_KEY environment variable.');
+    }
+    if (!this.config.passphrase) {
+      throw new Error('OKX passphrase not configured. Set OKX_PASSPHRASE environment variable.');
     }
   }
 
@@ -59,21 +66,10 @@ export class PaymentClient {
     }
   }
 
-  private async signPayload(payload: object): Promise<string> {
-    const message = JSON.stringify(payload);
-    const encoder = new TextEncoder();
-    const data = encoder.encode(message);
-
-    const keyData = Buffer.from(this.config.privateKey!.replace('0x', ''), 'hex');
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-
-    const sig = await crypto.subtle.sign('HMAC', cryptoKey, data);
-    return Buffer.from(sig).toString('hex');
+  private buildOkxSignature(timestamp: string, method: string, path: string, body: string): string {
+    const message = timestamp + method + path + body;
+    return createHmac('sha256', this.config.secretKey)
+      .update(message)
+      .digest('base64');
   }
 }

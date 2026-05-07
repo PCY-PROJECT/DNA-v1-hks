@@ -11,6 +11,7 @@ import { Verifier } from '../installer/Verifier.js';
 interface InstallOptions {
   version: string;
   marketplaceUrl: string;
+  yes?: boolean;
 }
 
 export async function installCommand(packageId: string, options: InstallOptions): Promise<void> {
@@ -37,24 +38,26 @@ export async function installCommand(packageId: string, options: InstallOptions)
   console.log(`  能力:     ${manifest.capabilities.join(', ')}`);
   console.log(`  不承诺:   ${manifest.notGuaranteed.join(', ')}`);
 
-  const confirmed = await confirm('\n确认购买并安装？(y/N) ');
+  const confirmed = options.yes || await confirm('\n确认购买并安装？(y/N) ');
   if (!confirmed) {
     console.log(chalk.yellow('已取消。'));
     process.exit(0);
   }
 
-  const walletAddress = process.env.DNACLOUD_WALLET_ADDRESS;
-  const privateKey = process.env.DNACLOUD_PRIVATE_KEY;
+  const apiKey = process.env.OKX_API_KEY;
+  const secretKey = process.env.OKX_SECRET_KEY;
+  const passphrase = process.env.OKX_PASSPHRASE;
 
-  if (!walletAddress || !privateKey) {
+  if (!apiKey || !secretKey || !passphrase) {
     console.error(chalk.red('\n❌ OKX x402 支付配置缺失'));
-    console.error('请设置环境变量：');
-    console.error('  DNACLOUD_WALLET_ADDRESS — 你的钱包地址');
-    console.error('  DNACLOUD_PRIVATE_KEY    — 你的私钥（不要写入代码，使用环境变量）');
+    console.error('请设置以下环境变量（或在 .env 文件中配置）：');
+    console.error('  OKX_API_KEY    — OKX API Key');
+    console.error('  OKX_SECRET_KEY — OKX Secret Key');
+    console.error('  OKX_PASSPHRASE — OKX Passphrase');
     process.exit(1);
   }
 
-  const paymentClient = new PaymentClient({ walletAddress, privateKey });
+  const paymentClient = new PaymentClient({ apiKey, secretKey, passphrase });
   const version = options.version === 'latest' ? manifest.version : options.version;
 
   spin.start('发起 OKX x402 支付请求...');
@@ -103,7 +106,7 @@ export async function installCommand(packageId: string, options: InstallOptions)
     }
   }
 
-  const confirmInstall = await confirm('\n确认安装到当前项目？(y/N) ');
+  const confirmInstall = options.yes || await confirm('\n确认安装到当前项目？(y/N) ');
   if (!confirmInstall) {
     fs.rmSync(tmpZip, { force: true });
     console.log(chalk.yellow('已取消。Artifact 已清理。'));

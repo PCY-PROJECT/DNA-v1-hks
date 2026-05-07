@@ -25,8 +25,11 @@ public class ArtifactService {
     @Value("${dnacloud.artifact-store}")
     private String artifactStore;
 
+    @Value("${dnacloud.demo-mode:false}")
+    private boolean demoMode;
+
     public ArtifactResponse acquireWithPayment(String packageId, String version, String paymentCredential) {
-        log.info("[ArtifactService.acquireWithPayment] start, packageId={}, version={}", packageId, version);
+        log.info("[ArtifactService.acquireWithPayment] start, packageId={}, version={}, demoMode={}", packageId, version, demoMode);
 
         DnaPackageInfo pkg = marketplaceService.getById(packageId);
         if (pkg == null) {
@@ -40,22 +43,38 @@ public class ArtifactService {
 
         String resource = "/v1/dna/" + packageId + "/versions/" + version + "/artifact";
 
-        X402VerifyResult verifyResult = x402Client.verify(
-            paymentCredential,
-            resource,
-            pkg.getPrice().getAmount(),
-            pkg.getPrice().getCurrency()
-        );
+        X402VerifyResult verifyResult;
+        String settlementRef;
 
-        if (!verifyResult.isValid()) {
-            log.error("[ArtifactService.acquireWithPayment] payment verify failed, error={}", verifyResult.getErrorMessage());
-            throw new IllegalStateException("OKX x402 payment verification failed: " + verifyResult.getErrorMessage());
-        }
+        if (demoMode) {
+            log.info("[ArtifactService.acquireWithPayment] DEMO MODE — skipping real OKX x402 verify/settle");
+            verifyResult = X402VerifyResult.builder()
+                    .valid(true)
+                    .txHash("demo-tx-" + System.currentTimeMillis())
+                    .payer("demo-payer")
+                    .amount(pkg.getPrice().getAmount())
+                    .currency(pkg.getPrice().getCurrency())
+                    .network(pkg.getPrice().getNetwork())
+                    .build();
+            settlementRef = "demo-settlement-" + System.currentTimeMillis();
+        } else {
+            verifyResult = x402Client.verify(
+                paymentCredential,
+                resource,
+                pkg.getPrice().getAmount(),
+                pkg.getPrice().getCurrency()
+            );
 
-        String settlementRef = x402Client.settle(paymentCredential, verifyResult.getTxHash());
-        if (settlementRef == null) {
-            log.error("[ArtifactService.acquireWithPayment] payment settle failed");
-            throw new IllegalStateException("OKX x402 payment settlement failed");
+            if (!verifyResult.isValid()) {
+                log.error("[ArtifactService.acquireWithPayment] payment verify failed, error={}", verifyResult.getErrorMessage());
+                throw new IllegalStateException("OKX x402 payment verification failed: " + verifyResult.getErrorMessage());
+            }
+
+            settlementRef = x402Client.settle(paymentCredential, verifyResult.getTxHash());
+            if (settlementRef == null) {
+                log.error("[ArtifactService.acquireWithPayment] payment settle failed");
+                throw new IllegalStateException("OKX x402 payment settlement failed");
+            }
         }
 
         String artifactPath = resolveArtifactPath(packageId, version);
@@ -75,7 +94,7 @@ public class ArtifactService {
         ArtifactResponse response = ArtifactResponse.builder()
                 .packageId(packageId)
                 .version(version)
-                .downloadUrl(artifactPath)
+                .downloadUrl("http://localhost:8080/v1/dna/" + packageId + "/versions/" + version + "/download")
                 .signature(signature)
                 .sha256(sha256)
                 .paymentReceipt(receipt)
@@ -91,9 +110,20 @@ public class ArtifactService {
 
     private String computeSha256(String path) {
         try {
+            java.io.File file = new java.io.File(path);
+            if (!file.exists()) {
+                log.warn("[ArtifactService.computeSha256] file not found: {}", path);
+                return "sha256-unavailable";
+            }
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(path.getBytes());
-            return HexFormat.of().formatHex(hash);
+            try (java.io.FileInputStream fis = new java.io.FileInputStream(file)) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = fis.read(buf)) != -1) {
+                    digest.update(buf, 0, n);
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest());
         } catch (Exception e) {
             log.error("[ArtifactService.computeSha256] failed, error={}", e.getMessage(), e);
             return "sha256-unavailable";
