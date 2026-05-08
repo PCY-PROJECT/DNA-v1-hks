@@ -1,5 +1,90 @@
 # DNAcloud 生产部署指南
 
+## 零、服务器一键部署（推荐）
+
+适用于全新 Ubuntu 20.04 / 22.04 / 24.04 服务器。
+
+### 前置条件
+
+1. **构建 jar**（本地或 CI）：
+   ```bash
+   cd server
+   JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home \
+     mvn package -DskipTests
+   # 产物：server/target/dnacloud-server-1.0.0-SNAPSHOT.jar
+   ```
+
+2. **上传到服务器**（以 SCP 为例）：
+   ```bash
+   scp server/target/dnacloud-server-1.0.0-SNAPSHOT.jar user@your-server:/tmp/
+   scp -r scripts/ user@your-server:/tmp/dnacloud-scripts/
+   scp .env.example user@your-server:/tmp/.env.example
+   ```
+
+### MySQL 初始化（可选，跳过则使用 H2 文件数据库）
+
+```bash
+# 在服务器上执行
+sudo bash /tmp/dnacloud-scripts/setup-mysql.sh
+# 输出会显示生成的数据库密码，复制到 .env 中
+```
+
+### 运行部署脚本
+
+```bash
+# 基础部署（使用 H2）
+sudo bash /tmp/dnacloud-scripts/deploy.sh \
+  --jar /tmp/dnacloud-server-1.0.0-SNAPSHOT.jar
+
+# 同时配置 Nginx 反向代理
+sudo bash /tmp/dnacloud-scripts/deploy.sh \
+  --jar /tmp/dnacloud-server-1.0.0-SNAPSHOT.jar \
+  --domain api.yourdomain.com
+```
+
+脚本完成后，编辑配置文件填写实际值：
+
+```bash
+sudo nano /opt/dnacloud/.env
+```
+
+然后启动服务：
+
+```bash
+sudo systemctl start dnacloud
+sudo systemctl status dnacloud
+```
+
+### 配置 HTTPS（有域名时必须）
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d api.yourdomain.com
+```
+
+### 常用运维命令
+
+```bash
+# 查看状态
+systemctl status dnacloud
+
+# 实时日志
+journalctl -u dnacloud -f
+
+# 应用日志文件
+tail -f /opt/dnacloud/logs/app.log
+
+# 重启（修改 .env 后需要重启）
+systemctl restart dnacloud
+
+# 更新 jar（重新部署）
+sudo cp new-version.jar /opt/dnacloud/dnacloud-server.jar
+sudo chown dnacloud:dnacloud /opt/dnacloud/dnacloud-server.jar
+sudo systemctl restart dnacloud
+```
+
+---
+
 ## 概览
 
 DNAcloud 由两部分组成：
