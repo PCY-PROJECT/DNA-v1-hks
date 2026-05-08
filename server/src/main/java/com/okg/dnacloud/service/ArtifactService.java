@@ -84,15 +84,28 @@ public class ArtifactService {
 
         String resource = "/v1/dna/" + packageId + "/versions/" + version + "/artifact";
 
+        String usdtContract = System.getenv().getOrDefault("USDT_CONTRACT_ADDRESS", "");
+        String resolvedPayTo  = (pkg.getPayout() != null && pkg.getPayout().getAddress() != null
+                && !pkg.getPayout().getAddress().isBlank()
+                && !pkg.getPayout().getAddress().equals("0x0000000000000000000000000000000000000001"))
+                ? pkg.getPayout().getAddress() : paymentAddress;
+        String resolvedAsset  = (pkg.getPayout() != null && pkg.getPayout().getAsset() != null
+                && !pkg.getPayout().getAsset().isBlank())
+                ? pkg.getPayout().getAsset() : usdtContract;
+        // Normalize network: "xlayer" → "eip155:196"
+        String rawNetwork = pkg.getPrice().getNetwork();
+        String resolvedNetwork = (rawNetwork == null || rawNetwork.isBlank() || rawNetwork.equalsIgnoreCase("xlayer"))
+                ? "eip155:196" : rawNetwork;
+
         // Verify + Settle via OKX Facilitator SDK
         X402VerifyResult verifyResult = x402Client.verifyAndSettle(
             paymentCredential,
             resource,
             pkg.getPrice().getAmount(),
             pkg.getPrice().getCurrency(),
-            pkg.getPayout() != null ? pkg.getPayout().getAddress() : paymentAddress,
-            pkg.getPayout() != null ? pkg.getPayout().getAsset()   : "",
-            pkg.getPrice().getNetwork()
+            resolvedPayTo,
+            resolvedAsset,
+            resolvedNetwork
         );
 
         if (!verifyResult.isValid()) {

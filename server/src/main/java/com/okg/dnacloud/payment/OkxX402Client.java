@@ -13,7 +13,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,8 +48,11 @@ public class OkxX402Client {
     @Value("${okx.x402.passphrase:}")
     private String passphrase;
 
-    @Value("${okx.x402.facilitator-url:https://www.okx.com/api/v5/onchainos/x402}")
+    @Value("${okx.x402.facilitator-url:https://web3.okx.com/api/v6/pay/x402}")
     private String facilitatorBaseUrl;
+
+    @Value("${dnacloud.base-url:http://localhost:8089}")
+    private String baseUrl;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -78,28 +83,71 @@ public class OkxX402Client {
         }
 
         try {
+            // Decode X-PAYMENT header (Base64 JSON) from client
+            @SuppressWarnings("unchecked")
+            Map<String, Object> clientPayload = objectMapper.readValue(
+                new String(Base64.getDecoder().decode(xPaymentHeader), StandardCharsets.UTF_8), Map.class);
+
+            // Extract actual values from what the client signed
+            @SuppressWarnings("unchecked")
+            Map<String, Object> clientInnerPayload = (Map<String, Object>) clientPayload.getOrDefault("payload", new HashMap<>());
+            @SuppressWarnings("unchecked")
+            Map<String, Object> authorization = (Map<String, Object>) clientInnerPayload.getOrDefault("authorization", new HashMap<>());
+
+            // Use the amount the client actually signed (minimal units, e.g. "1000" for 0.001 USDT)
+            String signedAmount = String.valueOf(authorization.getOrDefault("value", maxAmountRequired));
+            // Use the payTo the client actually signed for
+            String signedPayTo = String.valueOf(authorization.getOrDefault("to", payTo));
+
+            // extra: token name + EIP-3009 version
+            Map<String, Object> extra = new HashMap<>();
+            extra.put("name", currency);
+            extra.put("version", "2");
+
+            // paymentRequirements — matches official example structure
             Map<String, Object> paymentRequirements = new HashMap<>();
             paymentRequirements.put("scheme", "exact");
             paymentRequirements.put("network", network);
-            paymentRequirements.put("maxAmountRequired", maxAmountRequired);
-            paymentRequirements.put("resource", resource);
-            paymentRequirements.put("description", "");
-            paymentRequirements.put("mimeType", "");
-            paymentRequirements.put("payTo", payTo);
-            paymentRequirements.put("maxTimeoutSeconds", 300);
+            paymentRequirements.put("amount", signedAmount);
             paymentRequirements.put("asset", asset);
+            paymentRequirements.put("payTo", signedPayTo);
+            paymentRequirements.put("maxTimeoutSeconds", 300);
+            paymentRequirements.put("extra", extra);
+
+            // paymentPayload.resource object
+            Map<String, Object> resourceObj = new HashMap<>();
+            resourceObj.put("url", baseUrl + resource);
+            resourceObj.put("description", "DNAcloud artifact download");
+            resourceObj.put("mimeType", "application/zip");
+
+            // paymentPayload.accepted mirrors paymentRequirements
+            Map<String, Object> accepted = new HashMap<>();
+            accepted.put("scheme", "exact");
+            accepted.put("network", network);
+            accepted.put("amount", signedAmount);
+            accepted.put("asset", asset);
+            accepted.put("payTo", signedPayTo);
+            accepted.put("maxTimeoutSeconds", 300);
+            accepted.put("extra", extra);
+
+            Map<String, Object> paymentPayloadObj = new HashMap<>();
+            paymentPayloadObj.put("x402Version", 2);
+            paymentPayloadObj.put("resource", resourceObj);
+            paymentPayloadObj.put("accepted", accepted);
+            paymentPayloadObj.put("payload", clientInnerPayload);
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("x402Version", 1);
-            requestBody.put("paymentPayload", xPaymentHeader);
+            requestBody.put("x402Version", 2);
+            requestBody.put("paymentPayload", paymentPayloadObj);
             requestBody.put("paymentRequirements", paymentRequirements);
 
             String bodyJson = objectMapper.writeValueAsString(requestBody);
+            log.info("[OkxX402Client.verifyAndSettle] request body={}", bodyJson);
 
             // ── Verify ────────────────────────────────────────────────────────
             String verifyUrl = facilitatorBaseUrl + "/verify";
             HttpResponse<String> verifyResp = postWithOkxAuth(verifyUrl, bodyJson);
-            log.info("[OkxX402Client.verifyAndSettle] verify HTTP {}", verifyResp.statusCode());
+            log.info("[OkxX402Client.verifyAndSettle] verify HTTP {} body={}", verifyResp.statusCode(), verifyResp.body());
 
             if (verifyResp.statusCode() != 200) {
                 log.error("[OkxX402Client.verifyAndSettle] verify failed, HTTP {}: {}", verifyResp.statusCode(), verifyResp.body());
@@ -108,12 +156,15 @@ public class OkxX402Client {
             }
 
             @SuppressWarnings("unchecked")
-            Map<String, Object> verifyResult = objectMapper.readValue(verifyResp.body(), Map.class);
+            Map<String, Object> verifyResult = (Map<String, Object>)
+                ((Map<String, Object>) objectMapper.readValue(verifyResp.body(), Map.class))
+                .getOrDefault("data", new HashMap<>());
             boolean isValid = Boolean.TRUE.equals(verifyResult.get("isValid"));
             if (!isValid) {
                 String reason = String.valueOf(verifyResult.getOrDefault("invalidReason", "unknown"));
-                log.error("[OkxX402Client.verifyAndSettle] verify rejected: {}", reason);
-                return X402VerifyResult.builder().valid(false).errorMessage(reason).build();
+                String message = String.valueOf(verifyResult.getOrDefault("invalidMessage", reason));
+                log.error("[OkxX402Client.verifyAndSettle] verify rejected: {} — {}", reason, message);
+                return X402VerifyResult.builder().valid(false).errorMessage(message).build();
             }
 
             String payer = String.valueOf(verifyResult.getOrDefault("payer", ""));
@@ -131,10 +182,13 @@ public class OkxX402Client {
             }
 
             @SuppressWarnings("unchecked")
-            Map<String, Object> settleResult = objectMapper.readValue(settleResp.body(), Map.class);
+            Map<String, Object> settleResult = (Map<String, Object>)
+                ((Map<String, Object>) objectMapper.readValue(settleResp.body(), Map.class))
+                .getOrDefault("data", new HashMap<>());
             boolean success = Boolean.TRUE.equals(settleResult.get("success"));
             if (!success) {
-                String err = String.valueOf(settleResult.getOrDefault("error", "unknown"));
+                String err = String.valueOf(settleResult.getOrDefault("error",
+                    settleResult.getOrDefault("invalidMessage", "unknown")));
                 log.error("[OkxX402Client.verifyAndSettle] settle rejected: {}", err);
                 return X402VerifyResult.builder().valid(false).errorMessage("Settlement failed: " + err).build();
             }
@@ -162,7 +216,10 @@ public class OkxX402Client {
     private HttpResponse<String> postWithOkxAuth(String url, String body) throws Exception {
         URI uri = URI.create(url);
         String path = uri.getRawPath();
-        String timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
+        // OKX requires millisecond-precision ISO-8601: "2026-05-09T10:30:00.123Z"
+        String timestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                .withZone(ZoneOffset.UTC)
+                .format(Instant.now().truncatedTo(ChronoUnit.MILLIS));
         String sign = buildSign(timestamp, "POST", path, body);
 
         HttpRequest request = HttpRequest.newBuilder()
