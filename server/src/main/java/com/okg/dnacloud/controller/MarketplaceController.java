@@ -2,7 +2,6 @@ package com.okg.dnacloud.controller;
 
 import com.okg.dnacloud.model.ArtifactResponse;
 import com.okg.dnacloud.model.DnaPackageInfo;
-import com.okg.dnacloud.payment.X402PaymentChallenge;
 import com.okg.dnacloud.service.ArtifactService;
 import com.okg.dnacloud.service.MarketplaceService;
 import com.okg.dnacloud.service.PaymentRequiredException;
@@ -17,12 +16,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -65,25 +64,31 @@ public class MarketplaceController {
     public ResponseEntity<?> getArtifact(
             @PathVariable String packageId,
             @PathVariable String version,
-            @RequestHeader(value = "X-Payment-Credential", required = false) String paymentCredential) {
+            @RequestHeader(value = "X-PAYMENT", required = false) String xPayment) {
 
         if (!SAFE_ID.matcher(packageId).matches() || !SAFE_VER.matcher(version).matches()) {
             return ResponseEntity.badRequest().body(Map.of("error", "invalid package id or version"));
         }
 
-        log.info("[MarketplaceController.getArtifact] packageId={}, version={}, hasCredential={}", packageId, version, paymentCredential != null);
+        log.info("[MarketplaceController.getArtifact] packageId={}, version={}, hasPayment={}", packageId, version, xPayment != null);
 
         try {
-            ArtifactResponse artifact = artifactService.acquireWithPayment(packageId, version, paymentCredential);
-            return ResponseEntity.ok(artifact);
+            ArtifactResponse artifact = artifactService.acquireWithPayment(packageId, version, xPayment);
+
+            // Build X-PAYMENT-RESPONSE header (standard x402)
+            String paymentResponseHeader = buildPaymentResponseHeader(artifact);
+            return ResponseEntity.ok()
+                    .header("X-PAYMENT-RESPONSE", paymentResponseHeader)
+                    .body(artifact);
+
         } catch (PaymentRequiredException e) {
-            X402PaymentChallenge challenge = buildChallenge(e);
+            // Return standard x402 402 response with X-PAYMENT-REQUIREMENT header
+            String requirementHeader = buildPaymentRequirementHeader(e);
             return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
-                    .header("X-Payment-Scheme", "okx-x402")
+                    .header("X-PAYMENT-REQUIREMENT", requirementHeader)
                     .body(Map.of(
-                        "error", "payment_required",
-                        "message", "Payment required to download this DNA package",
-                        "challenge", challenge
+                        "x402Version", 1,
+                        "error", "X-PAYMENT header is required"
                     ));
         } catch (IllegalArgumentException e) {
             log.error("[MarketplaceController.getArtifact] bad request, error={}", e.getMessage());
@@ -124,16 +129,68 @@ public class MarketplaceController {
                 .body(new FileSystemResource(zipFile));
     }
 
-    private X402PaymentChallenge buildChallenge(PaymentRequiredException e) {
-        return X402PaymentChallenge.builder()
-                .payTo(paymentAddress)
-                .amount(e.getPackageInfo().getPrice().getAmount())
-                .currency(e.getPackageInfo().getPrice().getCurrency())
-                .network(e.getPackageInfo().getPrice().getNetwork())
-                .resource("/v1/dna/" + e.getPackageId() + "/versions/" + e.getVersion() + "/artifact")
-                .nonce(UUID.randomUUID().toString())
-                .expiresAt(Instant.now().plusSeconds(300).getEpochSecond())
-                .scheme("okx-x402")
-                .build();
+    /** Build the standard x402 X-PAYMENT-REQUIREMENT header value (base64 JSON). */
+    private String buildPaymentRequirementHeader(PaymentRequiredException e) {
+        DnaPackageInfo pkg = e.getPackageInfo();
+        String resource = "/v1/dna/" + e.getPackageId() + "/versions/" + e.getVersion() + "/artifact";
+
+        Map<String, Object> requirement = Map.of(
+            "scheme",             "exact",
+            "network",            pkg.getPrice().getNetwork(),
+            "maxAmountRequired",  toMinimalUnit(pkg.getPrice().getAmount()),
+            "resource",           resource,
+            "description",        pkg.getName() + " v" + pkg.getVersion(),
+            "mimeType",           "application/zip",
+            "payTo",              paymentAddress,
+            "maxTimeoutSeconds",  300,
+            "asset",              pkg.getPayout() != null ? pkg.getPayout().getAsset() : "",
+            "extra",              Map.of(
+                "name",    pkg.getPrice().getCurrency(),
+                "version", "2"
+            )
+        );
+
+        Map<String, Object> x402 = Map.of(
+            "x402Version", 1,
+            "accepts",     List.of(requirement),
+            "error",       "X-PAYMENT header is required"
+        );
+
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+            return Base64.getEncoder().encodeToString(om.writeValueAsBytes(x402));
+        } catch (Exception ex) {
+            log.error("[MarketplaceController.buildPaymentRequirementHeader] serialization failed", ex);
+            return "";
+        }
+    }
+
+    /** Build the standard x402 X-PAYMENT-RESPONSE header value (base64 JSON). */
+    private String buildPaymentResponseHeader(ArtifactResponse artifact) {
+        Map<String, Object> response = Map.of(
+            "success",   true,
+            "txHash",    artifact.getPaymentReceipt().getTxHash(),
+            "network",   artifact.getPaymentReceipt().getNetwork(),
+            "payer",     artifact.getPaymentReceipt().getPayer(),
+            "amount",    artifact.getPaymentReceipt().getAmount(),
+            "currency",  artifact.getPaymentReceipt().getCurrency()
+        );
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+            return Base64.getEncoder().encodeToString(om.writeValueAsBytes(response));
+        } catch (Exception ex) {
+            log.error("[MarketplaceController.buildPaymentResponseHeader] serialization failed", ex);
+            return "";
+        }
+    }
+
+    /** Convert human-readable amount (e.g. "0.001") to token minimal unit string (6 decimals). */
+    private String toMinimalUnit(String amount) {
+        try {
+            double val = Double.parseDouble(amount);
+            return String.valueOf((long)(val * 1_000_000));
+        } catch (NumberFormatException ex) {
+            return amount;
+        }
     }
 }

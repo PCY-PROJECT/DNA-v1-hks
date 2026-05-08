@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { MarketplaceClient } from '../marketplace/MarketplaceClient.js';
-import { PaymentClient } from '../marketplace/PaymentClient.js';
 import { Installer } from '../installer/Installer.js';
 import { Verifier } from '../installer/Verifier.js';
 
@@ -45,57 +44,64 @@ export async function installCommand(packageId: string, options: InstallOptions)
   }
 
   const localTestMode = process.env.DNACLOUD_LOCAL_TEST === 'true';
-  const apiKey = process.env.OKX_API_KEY;
-  const secretKey = process.env.OKX_SECRET_KEY;
-  const passphrase = process.env.OKX_PASSPHRASE;
-
-  if (!localTestMode && (!apiKey || !secretKey || !passphrase)) {
-    console.error(chalk.red('\n❌ OKX x402 支付配置缺失'));
-    console.error('请设置以下环境变量（或在 .env 文件中配置）：');
-    console.error('  OKX_API_KEY    — OKX API Key');
-    console.error('  OKX_SECRET_KEY — OKX Secret Key');
-    console.error('  OKX_PASSPHRASE — OKX Passphrase');
-    console.error(chalk.gray('\n本地测试可设置 DNACLOUD_LOCAL_TEST=true 跳过支付'));
-    process.exit(1);
-  }
-
   const version = options.version === 'latest' ? manifest.version : options.version;
-  let credential = '';
+
+  // ── 获取 artifact（x402 支付由 OKX Payment Skill 自动处理）──────────────
+  //
+  // 主流程：用户在 Claude Code 中使用，且已安装 OKX OnchainOS Payment Skill。
+  // Skill 自动检测 HTTP 402，用 Agentic Wallet 签名后重放请求（含 X-PAYMENT header）。
+  // CLI 直接发出带 X-PAYMENT 的请求即可——Skill 已在 Claude Code 层面处理。
+  //
+  // 若在 CLI 独立运行（不经过 Claude Code）：
+  // 服务端会返回 402，终端会看到提示，需要通过 Claude Code 完成购买。
+
+  spin.start('请求 artifact...');
+  let artifactData;
 
   if (localTestMode) {
-    spin.start('本地测试模式 — 跳过 OKX x402 支付...');
-    spin.succeed('本地测试模式：已跳过支付验证');
+    const result = await marketplaceClient.requestArtifact(packageId, version);
+    if (result.type === 'payment_required') {
+      spin.fail('本地测试模式下服务器仍返回 402，请确认服务端设置了 DNACLOUD_LOCAL_TEST=true');
+      process.exit(1);
+    }
+    spin.succeed('本地测试模式 — 跳过支付验证');
+    artifactData = result.data;
   } else {
-    const paymentClient = new PaymentClient({ apiKey: apiKey!, secretKey: secretKey!, passphrase: passphrase! });
+    // 从环境中获取 X-PAYMENT（由 OKX Payment Skill 注入，或 CLI 测试时手动设置）
+    const xPayment = process.env.X_PAYMENT_CREDENTIAL ?? '';
 
-    spin.start('发起 OKX x402 支付请求...');
-
-    const firstAttempt = await marketplaceClient.getArtifact(packageId, version, '');
-    if (firstAttempt.type !== 'payment_required') {
-      spin.fail('预期收到 402 挑战，但服务器未返回支付要求。');
-      process.exit(1);
-    }
-
-    spin.text = '签名 OKX x402 支付...';
-    try {
-      credential = await paymentClient.signAndPay(firstAttempt.challenge);
-      spin.succeed('支付凭证已生成');
-    } catch (err) {
-      spin.fail(`支付失败: ${(err as Error).message}`);
-      process.exit(1);
+    if (!xPayment) {
+      // 先发一次无支付请求获取 402 challenge 信息（供 Skill 参考），然后提示用户
+      const probe = await marketplaceClient.requestArtifact(packageId, version);
+      if (probe.type === 'success') {
+        spin.succeed('无需支付，artifact 已获取');
+        artifactData = probe.data;
+      } else {
+        spin.stop();
+        const req = probe.requirement;
+        console.log('\n' + chalk.bold('💳 需要支付：'));
+        console.log(`  金额:   ${req.maxAmountRequired} ${req.extra?.name ?? req.asset}`);
+        console.log(`  网络:   ${req.network}`);
+        console.log(`  收款方: ${req.payTo}`);
+        console.log(`\n${chalk.yellow('请在 Claude Code 中执行购买（OKX Payment Skill 会自动处理支付）：')}`);
+        console.log(`  1. 确认已安装 OKX OnchainOS Payment Skill`);
+        console.log(`  2. 确认 Agentic Wallet 有 USDT 余额`);
+        console.log(`  3. 在 Claude Code 中说"我要安装 ${packageId}"\n`);
+        process.exit(1);
+      }
+    } else {
+      // OKX Payment Skill 已完成签名，直接用 X-PAYMENT 获取 artifact
+      spin.text = 'OKX x402 支付凭证验证中...';
+      try {
+        artifactData = await marketplaceClient.getArtifactWithPayment(packageId, version, xPayment);
+        const txHash = artifactData.paymentReceipt?.txHash ?? '—';
+        spin.succeed(`支付已确认  txHash: ${chalk.green(txHash)}`);
+      } catch (err) {
+        spin.fail(`支付验证失败: ${(err as Error).message}`);
+        process.exit(1);
+      }
     }
   }
-
-  spin.start('提交支付并下载签名 artifact...');
-  const result = await marketplaceClient.getArtifact(packageId, version, credential);
-  if (result.type === 'payment_required') {
-    spin.fail('支付验证失败，服务器拒绝了支付凭证。');
-    process.exit(1);
-  }
-
-  spin.succeed('Artifact 下载成功，支付收据已保存');
-
-  const artifactData = result.data;
   const tmpZip = path.join(process.cwd(), '.dnacloud', 'staging', `${packageId}-${version}.zip`);
   fs.mkdirSync(path.dirname(tmpZip), { recursive: true });
   const zipResponse = await fetch(artifactData.downloadUrl);

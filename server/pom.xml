@@ -51,7 +51,7 @@
       <artifactId>lombok</artifactId>
       <optional>true</optional>
     </dependency>
-    <!-- HTTP client for OKX x402 verify/settle calls -->
+    <!-- HTTP client (kept for async calls and OKX x402 facilitator calls) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-webflux</artifactId>

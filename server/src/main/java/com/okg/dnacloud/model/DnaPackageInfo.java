@@ -17,4 +17,5 @@ public class DnaPackageInfo {
     private List<String> capabilities;
     private List<String> notGuaranteed;
     private DnaPrice price;
+    private DnaPayout payout;
 }

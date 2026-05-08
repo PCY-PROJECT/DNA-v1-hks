@@ -3,6 +3,7 @@ package com.okg.dnacloud.service;
 import com.okg.dnacloud.entity.PackageVersionEntity;
 import com.okg.dnacloud.entity.PackageVersionEntity.PackageStatus;
 import com.okg.dnacloud.model.DnaPackageInfo;
+import com.okg.dnacloud.model.DnaPayout;
 import com.okg.dnacloud.model.DnaPrice;
 import com.okg.dnacloud.repository.PackageVersionRepository;
 import lombok.RequiredArgsConstructor;
@@ -130,8 +131,14 @@ public class MarketplaceService {
                 .notGuaranteed(List.of("profitability", "win_rate", "investment_advice", "risk_free_trading"))
                 .price(DnaPrice.builder()
                     .amount("0.001")
-                    .currency("USDG")
-                    .network("xlayer")
+                    .currency("USDT")
+                    .network("eip155:196")
+                    .build())
+                .payout(DnaPayout.builder()
+                    .address("0x0000000000000000000000000000000000000001")
+                    .currency("USDT")
+                    .network("eip155:196")
+                    .asset(System.getenv().getOrDefault("USDT_CONTRACT_ADDRESS", ""))
                     .build())
                 .build()
         );

@@ -43,6 +43,7 @@ okx:
     api-key: ${OKX_API_KEY:}
     secret-key: ${OKX_SECRET_KEY:}
     passphrase: ${OKX_PASSPHRASE:}
+    facilitator-url: ${OKX_X402_FACILITATOR_URL:https://www.okx.com/api/v5/onchainos/x402}
 
 logging:
   level:

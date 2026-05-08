@@ -5,6 +5,9 @@
   "description": "DNA package schema types and validators",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -22,5 +25,8 @@
   },
   "dependencies": {
     "ajv": "^8.17.1"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

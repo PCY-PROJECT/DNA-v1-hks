@@ -31,16 +31,17 @@ description: >
 
 ```
 0. 支付环境检测（前置，必须通过才能继续）
-   → 检查 .env 或环境变量中是否存在 OKX_API_KEY / OKX_SECRET_KEY / OKX_PASSPHRASE
-   → 若缺失，进入【OKX x402 配置引导】流程（见下方），完成后再继续
-   → 若已配置，直接进入步骤 1
+   → 检查是否已安装 OKX OnchainOS Payment Skill（Agentic Wallet）
+   → 若未安装，进入【OKX Payment Skill 配置引导】流程（见下方），完成后再继续
+   → 若已安装，直接进入步骤 1
 
 1. 理解需求 → 识别用户想要的专家能力类型
 2. 搜索市场 → 调用 dnacloud-marketplace MCP 搜索相关 DNA 包
 3. 展示推荐 → 展示匹配的 DNA 包、价格、能力、权限影响
 4. 用户确认 → 等待用户确认购买
-5. OKX x402 支付 → 触发真实支付流程（不使用 mock）
-6. 下载 artifact → 从 marketplace 下载签名包
+5. OKX x402 支付 → 向 marketplace 请求 artifact，服务端返回 402
+   OKX Payment Skill 自动检测 402，Agentic Wallet 签名，重放请求完成支付
+6. 下载 artifact → 服务端验证支付后返回签名包
 7. 展示安装预览 → 列出将要安装的所有文件和修改
 8. 用户确认安装 → 等待最终确认
 9. 执行安装 → 调用 dnacloud-installer agent
@@ -48,60 +49,40 @@ description: >
 11. 完成 → 告知用户新能力已可用
 ```
 
-## OKX x402 配置引导
+## OKX Payment Skill 配置引导
 
-**触发条件**：用户尝试购买 DNA 包时，检测到 OKX 凭证缺失。
+**触发条件**：用户尝试购买 DNA 包时，检测到 OKX Payment Skill 未安装。
 
 **引导流程**：
 
 ```
-检测到缺少 OKX x402 支付凭证。
-购买 DNA 包需要通过 OKX OnchainOS 获取支付凭证。
+购买 DNA 包需要 OKX OnchainOS Payment Skill 完成链上支付。
+Payment Skill 提供 Agentic Wallet，自动处理 HTTP 402 支付请求，无需手动管理私钥。
 
-⚠️ 注意：这不是 OKX 交易所的普通 API Key，
-   而是 OKX OnchainOS 开发者门户专用凭证。
+━━━━━━━━ 安装 OKX Payment Skill ━━━━━━━━
 
-━━━━━━━━ 获取 OKX OnchainOS 凭证 ━━━━━━━━
+步骤 1：按照官方文档安装 Payment Skill
+  → https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/payment-use-buyer
+  安装后，Skill 会自动配置 Agentic Wallet（私钥由 TEE 保管，无需导出）
 
-步骤 1：打开 OKX OnchainOS 开发者门户
-  → https://web3.okx.com/zh-hans/onchainos/dev-portal
-  （不是 okx.com 的账户设置，请注意区别）
+步骤 2：为 Agentic Wallet 充值 USDT
+  - 在 OKX 购买 USDT，转入 X Layer 网络
+  - 或通过 OKX Wallet 跨链桥转入
+  - Trading Master DNA 售价：0.001 USDT
 
-步骤 2：连接你的 EVM 钱包（MetaMask 等）
-  - 点击"连接钱包"，选择你的 EVM 兼容钱包
-  - 签名验证消息，证明钱包地址所有权
-  - 无需充值，仅用于身份验证
+步骤 3：告诉我"配置完成了"，我会重新检测并继续安装。
 
-步骤 3：创建 API Key
-  - 在开发者门户创建 API Key
-  - 保存三个凭证：API Key、Secret Key、Passphrase
-
-步骤 4：写入项目 .env 文件
-  OKX_API_KEY=你的 API Key
-  OKX_SECRET_KEY=你的 Secret Key
-  OKX_PASSPHRASE=你的 Passphrase
-
-步骤 5：告诉我"配置完成了"，我会重新检测并继续安装。
-
-⚠️ 安全提示：
-  - 不要把 .env 文件提交到 Git（已在 .gitignore 中）
-  - 不要把凭证内容告诉我，我只检测变量是否存在
-  - 这套凭证仅用于 OKX OnchainOS x402 支付，与 OKX 交易账户分开
-
-参考文档：
-  https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/overview
+⚠️ 说明：
+  - Agentic Wallet 私钥在 TEE 内生成，不可导出，用户无需管理私钥
+  - 支付由 Payment Skill 全自动完成，无需手动操作
+  - 参考：https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/overview
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-**检测方式**：
-```bash
-# 检查 .env 文件是否包含必需的三个变量
-grep -E "OKX_API_KEY|OKX_SECRET_KEY|OKX_PASSPHRASE" .env 2>/dev/null
-```
-
-检测到三个变量均存在（值非空）→ 通过，继续购买流程。
-任意一个缺失 → 重新展示引导，等待用户完成配置。
+**检测方式**：询问用户"是否已安装 OKX OnchainOS Payment Skill 并配置了 Agentic Wallet？"
+- 用户确认已安装 → 通过，继续购买流程
+- 用户未安装 → 展示引导，等待完成配置
 
 ## 执行流程（卖家）
 

@@ -8,7 +8,7 @@ Usage: /dna-create [package-name]
    - Package ID (lowercase, hyphens only, e.g. `my-expert-dna`)
    - Package name (display name)
    - Domain / expertise area
-   - Target price (in USDG)
+   - Target price (in USDT)
    - Creator payout wallet address (EVM, 0x...)
 
 2. **Scaffold the package directory structure**:
@@ -34,8 +34,8 @@ Usage: /dna-create [package-name]
    - `objective`: what this DNA installs, NOT what it promises to achieve
    - `capabilities[]`: machine-readable capability identifiers
    - `notGuaranteed[]`: be honest about limitations
-   - `price`: `{ amount, currency: "USDG", network: "xlayer" }`
-   - `payout`: `{ address: <wallet>, currency: "USDG", network: "xlayer" }`
+   - `price`: `{ amount, currency: "USDT", network: "xlayer" }`
+   - `payout`: `{ address: <wallet>, currency: "USDT", network: "xlayer" }`
    - `components`: list every file that will be installed
 
 4. **Generate `install-plan.json`** mapping source → destination:

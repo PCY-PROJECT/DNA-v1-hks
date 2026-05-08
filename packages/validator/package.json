@@ -4,6 +4,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
   "exports": {
     ".": "./dist/index.js"
   },
@@ -12,11 +15,14 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@dnacloud/schema": "workspace:*",
+    "@dnacloud/schema": "^1.0.0",
     "semver": "^7.6.0"
   },
   "devDependencies": {
     "@types/semver": "^7.5.8",
     "typescript": "^5.4.5"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

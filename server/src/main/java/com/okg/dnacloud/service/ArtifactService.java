@@ -33,6 +33,9 @@ public class ArtifactService {
     @Value("${dnacloud.local-test-mode:false}")
     private boolean localTestMode;
 
+    @Value("${dnacloud.payment-address:}")
+    private String paymentAddress;
+
     public ArtifactResponse acquireWithPayment(String packageId, String version, String paymentCredential) {
         log.info("[ArtifactService.acquireWithPayment] start, packageId={}, version={}, localTestMode={}", packageId, version, localTestMode);
 
@@ -81,23 +84,23 @@ public class ArtifactService {
 
         String resource = "/v1/dna/" + packageId + "/versions/" + version + "/artifact";
 
-        X402VerifyResult verifyResult = x402Client.verify(
+        // Verify + Settle via OKX Facilitator SDK
+        X402VerifyResult verifyResult = x402Client.verifyAndSettle(
             paymentCredential,
             resource,
             pkg.getPrice().getAmount(),
-            pkg.getPrice().getCurrency()
+            pkg.getPrice().getCurrency(),
+            pkg.getPayout() != null ? pkg.getPayout().getAddress() : paymentAddress,
+            pkg.getPayout() != null ? pkg.getPayout().getAsset()   : "",
+            pkg.getPrice().getNetwork()
         );
 
         if (!verifyResult.isValid()) {
-            log.error("[ArtifactService.acquireWithPayment] payment verify failed, error={}", verifyResult.getErrorMessage());
-            throw new IllegalStateException("OKX x402 payment verification failed: " + verifyResult.getErrorMessage());
+            log.error("[ArtifactService.acquireWithPayment] payment verify/settle failed, error={}", verifyResult.getErrorMessage());
+            throw new IllegalStateException("OKX x402 payment failed: " + verifyResult.getErrorMessage());
         }
 
-        String settlementRef = x402Client.settle(paymentCredential, verifyResult.getTxHash());
-        if (settlementRef == null) {
-            log.error("[ArtifactService.acquireWithPayment] payment settle failed");
-            throw new IllegalStateException("OKX x402 payment settlement failed");
-        }
+        String settlementRef = "okx-settled-" + verifyResult.getTxHash();
 
         String artifactPath = resolveArtifactPath(packageId, version);
         String sha256 = computeSha256(artifactPath);

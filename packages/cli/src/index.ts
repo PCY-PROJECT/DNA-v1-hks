@@ -55,7 +55,7 @@ program
   .description('Upload a DNA package to DNAcloud marketplace')
   .requiredOption('--payout-address <address>', 'Creator payout wallet address (must match package manifest)')
   .option('--price <amount>', 'Package price (overrides manifest)')
-  .option('--currency <currency>', 'Payment currency (default: USDG)')
+  .option('--currency <currency>', 'Payment currency (default: USDT)')
   .option('--category <category>', 'Package category')
   .option('--marketplace-url <url>', 'DNAcloud marketplace URL')
   .action(uploadCommand);

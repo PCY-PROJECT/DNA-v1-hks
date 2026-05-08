@@ -1,182 +1,75 @@
-# DNAcloud 生产部署指南
+# DNAcloud 上线操作手册
 
-## 零、服务器一键部署（推荐）
+> 按顺序执行，每步完成后打勾。
 
-适用于全新 Ubuntu 20.04 / 22.04 / 24.04 服务器。
+---
 
-### 前置条件
+## 全局 Checklist
 
-1. **构建 jar**（本地或 CI）：
-   ```bash
-   cd server
-   JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home \
-     mvn package -DskipTests
-   # 产物：server/target/dnacloud-server-1.0.0-SNAPSHOT.jar
-   ```
-
-2. **上传到服务器**（以 SCP 为例）：
-   ```bash
-   scp server/target/dnacloud-server-1.0.0-SNAPSHOT.jar user@your-server:/tmp/
-   scp -r scripts/ user@your-server:/tmp/dnacloud-scripts/
-   scp .env.example user@your-server:/tmp/.env.example
-   ```
-
-### MySQL 初始化（可选，跳过则使用 H2 文件数据库）
-
-```bash
-# 在服务器上执行
-sudo bash /tmp/dnacloud-scripts/setup-mysql.sh
-# 输出会显示生成的数据库密码，复制到 .env 中
 ```
+基础设施
+  [ ] 1. 构建 Server JAR
+  [ ] 2. 上传并部署到服务器
+  [ ] 3. 配置 .env（填写真实值）
+  [ ] 4. 开放防火墙端口
+  [ ] 5. 配置 Nginx + HTTPS
 
-### 运行部署脚本
+官方包上线
+  [ ] 6. 上传 Trading Master DNA 到 marketplace
 
-```bash
-# 基础部署（使用 H2）
-sudo bash /tmp/dnacloud-scripts/deploy.sh \
-  --jar /tmp/dnacloud-server-1.0.0-SNAPSHOT.jar
+前端 CLI 发布
+  [ ] 7. 发布 @dnacloud/mcp-server 到 npm
+  [ ] 8. 发布 @dnacloud/cli 到 npm
 
-# 同时配置 Nginx 反向代理
-sudo bash /tmp/dnacloud-scripts/deploy.sh \
-  --jar /tmp/dnacloud-server-1.0.0-SNAPSHOT.jar \
-  --domain api.yourdomain.com
-```
-
-脚本完成后，编辑配置文件填写实际值：
-
-```bash
-sudo nano /opt/dnacloud/.env
-```
-
-然后启动服务：
-
-```bash
-sudo systemctl start dnacloud
-sudo systemctl status dnacloud
-```
-
-### 配置 HTTPS（有域名时必须）
-
-```bash
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d api.yourdomain.com
-```
-
-### 常用运维命令
-
-```bash
-# 查看状态
-systemctl status dnacloud
-
-# 实时日志
-journalctl -u dnacloud -f
-
-# 应用日志文件
-tail -f /opt/dnacloud/logs/app.log
-
-# 重启（修改 .env 后需要重启）
-systemctl restart dnacloud
-
-# 更新 jar（重新部署）
-sudo cp new-version.jar /opt/dnacloud/dnacloud-server.jar
-sudo chown dnacloud:dnacloud /opt/dnacloud/dnacloud-server.jar
-sudo systemctl restart dnacloud
+验收测试
+  [ ] 9. 服务端接口冒烟测试
+  [ ] 10. CLI 端到端安装流程测试
+  [ ] 11. OKX x402 真实支付测试
 ```
 
 ---
 
-## 概览
+## 一、构建 Server JAR
 
-DNAcloud 由两部分组成：
-- **Server**：Spring Boot 3 / Java 17，提供 Marketplace API、Creator API、OKX x402 支付中间件
-- **CLI**（`@dnacloud/cli`）：TypeScript/Node.js，提供 `dnacloud` 命令行工具
+在本地执行（需要 JDK 17）：
+
+```bash
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home \
+  mvn -f server/pom.xml package -DskipTests
+
+# 产物
+ls -lh server/target/dnacloud-server-1.0.0-SNAPSHOT.jar
+```
 
 ---
 
-## 一、服务端部署
+## 二、上传并部署到服务器
 
-### 1.1 依赖要求
-
-| 依赖 | 版本 | 说明 |
-|------|------|------|
-| JDK | 17+ | 推荐 Zulu 17 或 Temurin 17 |
-| MySQL / PostgreSQL | 8.0+ / 14+ | 生产环境替换默认 H2 |
-| 磁盘 | 10GB+ | artifact 存储 |
-
-### 1.2 构建
+### 2.1 上传文件
 
 ```bash
-cd server
-JAVA_HOME=/path/to/jdk17 mvn package -DskipTests
-# 产物：target/dnacloud-server-1.0.0-SNAPSHOT.jar
+SERVER=root@163.7.3.34
+
+scp server/target/dnacloud-server-1.0.0-SNAPSHOT.jar $SERVER:/opt/dnacloud/dnacloud-server.jar
+scp .env $SERVER:/opt/dnacloud/.env
+scp scripts/deploy.sh $SERVER:/tmp/deploy.sh
 ```
 
-### 1.3 必需环境变量
-
-以下变量**必须在生产环境配置**，否则对应功能不可用：
+### 2.2 首次部署（在服务器上执行）
 
 ```bash
-# ---- 服务基础 ----
-SERVER_PORT=8080
-DNACLOUD_BASE_URL=https://api.yourdomain.com      # 下载链接中的公网地址，必须配置
+# 创建运行用户和目录
+useradd -r -s /bin/false dnacloud 2>/dev/null || true
+mkdir -p /opt/dnacloud/{artifacts,logs,data}
+chown -R dnacloud:dnacloud /opt/dnacloud
 
-# ---- 数据库（生产替换 H2）----
-DB_URL=jdbc:mysql://your-db-host:3306/dnacloud?useSSL=true&serverTimezone=UTC
-DB_DRIVER=com.mysql.cj.jdbc.Driver
-DB_USERNAME=dnacloud
-DB_PASSWORD=<strong-password>
-JPA_DDL_AUTO=validate                              # 生产环境用 validate，禁止 update/create
-JPA_DIALECT=org.hibernate.dialect.MySQLDialect
+# 安装 JDK 17（Ubuntu）
+apt-get update && apt-get install -y openjdk-17-jre-headless
 
-# ---- artifact 存储 ----
-DNACLOUD_ARTIFACT_STORE=/data/dnacloud/artifacts   # 需要有读写权限的持久化目录
-
-# ---- OKX x402 支付（买家支付验证）----
-OKX_API_KEY=<your-okx-api-key>
-OKX_SECRET_KEY=<your-okx-secret-key>
-OKX_PASSPHRASE=<your-okx-passphrase>
-
-# ---- 平台收款地址（接收买家付款）----
-DNACLOUD_PAYMENT_ADDRESS=0x<platform-wallet-address>
-
-# ---- Admin API 保护 ----
-DNACLOUD_ADMIN_API_KEY=<random-secret-32chars+>    # 必须配置，否则 admin 端点拒绝服务
-
-# ---- 平台签名密钥 ----
-DNACLOUD_SIGNING_KEY=<random-secret-64chars+>      # 用于包签名，不配置则签名为 "unsigned"
-```
-
-### 1.4 可选环境变量
-
-```bash
-# ---- Creator 收益结算（链上转账）----
-DNACLOUD_TREASURY_KEY=<treasury-wallet-private-key>   # 配置后 payout worker 将尝试链上转账
-                                                        # 不配置则 payout 状态为 pending，需手动处理
-
-# ---- CORS ----
-DNACLOUD_CORS_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
-
-# ---- 平台费率（默认 20%）----
-DNACLOUD_PLATFORM_FEE_RATE=0.20
-
-# ---- 最小结算金额（单位：最小精度，默认 100000 = 0.1 USDG）----
-DNACLOUD_MINIMUM_PAYOUT=100000
-
-# ---- 本地测试模式（生产禁止开启）----
-# DNACLOUD_LOCAL_TEST=false    # 默认 false，绝对不要在生产设置为 true
-```
-
-### 1.5 启动
-
-```bash
-java -jar target/dnacloud-server-1.0.0-SNAPSHOT.jar
-```
-
-推荐使用 systemd 管理进程：
-
-```ini
+# 创建 systemd service
+cat > /etc/systemd/system/dnacloud.service << 'EOF'
 [Unit]
-Description=DNAcloud Server
+Description=DNAcloud Marketplace Server
 After=network.target
 
 [Service]
@@ -186,141 +79,381 @@ EnvironmentFile=/opt/dnacloud/.env
 ExecStart=/usr/bin/java -Xmx512m -jar /opt/dnacloud/dnacloud-server.jar
 Restart=always
 RestartSec=10
+StandardOutput=append:/opt/dnacloud/logs/app.log
+StandardError=append:/opt/dnacloud/logs/app.log
 
 [Install]
 WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable dnacloud
+systemctl start dnacloud
+
+# 检查是否启动成功
+sleep 5 && curl -s http://localhost:8089/actuator/health
 ```
 
-### 1.6 H2 → MySQL 数据库迁移
+### 2.3 后续更新（只需两步）
 
-> H2 仅用于开发/演示，**生产必须使用 MySQL 或 PostgreSQL**。
-
-**步骤 1**：在 `pom.xml` 中添加 MySQL 驱动（已有 H2 scope=runtime，替换或并存）：
-
-```xml
-<dependency>
-    <groupId>com.mysql</groupId>
-    <artifactId>mysql-connector-j</artifactId>
-    <scope>runtime</scope>
-</dependency>
+```bash
+scp server/target/dnacloud-server-1.0.0-SNAPSHOT.jar $SERVER:/opt/dnacloud/dnacloud-server.jar
+ssh $SERVER "systemctl restart dnacloud && sleep 3 && curl -s http://localhost:8089/actuator/health"
 ```
-
-**步骤 2**：设置 `JPA_DDL_AUTO=create` 首次启动（自动建表），然后改回 `validate`。
-
-**步骤 3**：检查 `application.yml` 中的 `JPA_DIALECT` 环境变量已设置为 MySQL Dialect。
 
 ---
 
-## 二、CLI 发布
+## 三、配置 .env（填写真实值）
 
-### 2.1 构建
+服务器上编辑 `/opt/dnacloud/.env`，以下是**完整的生产配置**：
+
+```bash
+# ─── 服务基础 ─────────────────────────────────────────────────────
+SERVER_PORT=8089
+# 公网地址，用于拼接 artifact 下载链接（必须与实际访问地址一致）
+DNACLOUD_BASE_URL=https://api.dnacloud.okg.com
+
+# ─── Artifact 存储 ────────────────────────────────────────────────
+DNACLOUD_ARTIFACT_STORE=/opt/dnacloud/artifacts
+
+# ─── OKX OnchainOS 支付凭证 ───────────────────────────────────────
+# 来源：https://web3.okx.com/zh-hans/onchainos/dev-portal
+# 注意：这是 OnchainOS 开发者门户的凭证，不是 OKX 交易所 API Key
+OKX_API_KEY=<从 OnchainOS 门户获取>
+OKX_SECRET_KEY=<从 OnchainOS 门户获取>
+OKX_PASSPHRASE=<从 OnchainOS 门户获取>
+
+# ─── 代币合约地址 ─────────────────────────────────────────────────
+# XLayer mainnet USDT 合约地址
+USDT_CONTRACT_ADDRESS=0x779ded0c9e1022225f8e0630b35a9b54be713736
+
+# ─── 平台钱包 ─────────────────────────────────────────────────────
+# 买家付款目标地址（平台收款钱包，EVM 地址）
+DNACLOUD_PAYMENT_ADDRESS=0x<平台钱包地址>
+
+# 平台出款私钥（可选，配置后自动链上转账给创作者）
+# 不配置时 payout 保持 pending 状态，需手动处理
+# DNACLOUD_TREASURY_KEY=0x<私钥>
+
+# ─── 安全密钥 ─────────────────────────────────────────────────────
+# 生成命令：openssl rand -hex 32
+DNACLOUD_ADMIN_API_KEY=<32字节随机值>
+
+# 生成命令：openssl rand -hex 64
+DNACLOUD_SIGNING_KEY=<64字节随机值>
+
+# ─── 业务参数 ─────────────────────────────────────────────────────
+DNACLOUD_CORS_ORIGINS=https://dnacloud.okg.com
+DNACLOUD_PLATFORM_FEE_RATE=0.20
+DNACLOUD_MINIMUM_PAYOUT=100000
+
+# ─── 生产必须保持注释 ─────────────────────────────────────────────
+# DNACLOUD_LOCAL_TEST=false
+```
+
+修改 `.env` 后重启：
+
+```bash
+systemctl restart dnacloud
+```
+
+---
+
+## 四、开放防火墙端口
+
+在**云服务商控制台**的安全组/防火墙规则里添加：
+
+| 端口 | 协议 | 用途 |
+|------|------|------|
+| 80   | TCP  | HTTP（Nginx，重定向到 443） |
+| 443  | TCP  | HTTPS（Nginx 反代到 8089） |
+| 8089 | TCP  | 可选，直接暴露（不推荐生产使用） |
+
+---
+
+## 五、配置 Nginx + HTTPS
+
+### 5.1 安装 Nginx
+
+```bash
+apt-get install -y nginx certbot python3-certbot-nginx
+```
+
+### 5.2 配置反向代理
+
+```bash
+cat > /etc/nginx/sites-available/dnacloud << 'EOF'
+server {
+    listen 80;
+    server_name api.dnacloud.okg.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name api.dnacloud.okg.com;
+
+    ssl_certificate     /etc/letsencrypt/live/api.dnacloud.okg.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.dnacloud.okg.com/privkey.pem;
+
+    client_max_body_size 60M;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8089;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+}
+EOF
+
+ln -sf /etc/nginx/sites-available/dnacloud /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+```
+
+### 5.3 申请 SSL 证书
+
+```bash
+# 需要先把 api.dnacloud.okg.com 的 DNS A 记录指向服务器 IP
+certbot --nginx -d api.dnacloud.okg.com
+```
+
+### 5.4 DNS 配置
+
+在 DNS 控制台添加：
+
+| 类型 | 主机名 | 值 | TTL |
+|------|--------|-----|-----|
+| A | api.dnacloud.okg.com | 163.7.3.34 | 600 |
+
+---
+
+## 六、上传 Trading Master DNA 官方包
+
+### 6.1 打包
+
+```bash
+# 在本地 repo 中执行
+cd dna-packages/trading-master-dna
+zip -r ../../trading-master-dna-1.0.1.zip . -x "*.DS_Store"
+cd ../..
+```
+
+### 6.2 验证包结构
+
+```bash
+node packages/cli/dist/index.js validate trading-master-dna-1.0.1.zip
+```
+
+期望输出：`✔ 包结构验证通过`
+
+### 6.3 上传到 marketplace
+
+```bash
+node packages/cli/dist/index.js upload trading-master-dna-1.0.1.zip \
+  --payout-address 0x<平台钱包地址> \
+  --marketplace-url https://api.dnacloud.okg.com
+```
+
+### 6.4 验证上传成功
+
+```bash
+curl -s "https://api.dnacloud.okg.com/v1/dna/trading-master-dna" | python3 -m json.tool | grep '"version"'
+```
+
+---
+
+## 七、发布 npm 包
+
+### 7.1 构建 TypeScript 包
+
+```bash
+pnpm -r build
+# 构建顺序：schema → validator → mcp-server → cli
+```
+
+### 7.2 发布 @dnacloud/mcp-server
+
+```bash
+cd packages/mcp-server
+npm publish --access public
+```
+
+### 7.3 发布 @dnacloud/cli
 
 ```bash
 cd packages/cli
-pnpm build
-```
-
-### 2.2 发布到 npm
-
-```bash
+# 确认 package.json 里 version 和默认 marketplace URL 正确
 npm publish --access public
-# 包名：@dnacloud/cli
-# 用户安装：npm install -g @dnacloud/cli
 ```
 
-### 2.3 配置 marketplace 地址
-
-CLI 默认连接 `http://localhost:8080`，用户可通过以下方式配置：
+发布后，用户可以：
 
 ```bash
-dnacloud config set marketplace.url https://api.yourdomain.com
-# 或在项目 .dnacloud/config.json 中设置
+npm install -g @dnacloud/cli
+# 或
+npx @dnacloud/cli init
 ```
 
 ---
 
-## 三、安全检查清单
+## 八、验收测试
 
-### 必须完成
+### 8.1 服务端冒烟测试
 
-- [ ] `DNACLOUD_ADMIN_API_KEY` 已配置（32+ 字符随机字符串）
-- [ ] `DNACLOUD_LOCAL_TEST` 为 `false`（默认值，确认未被覆盖）
-- [ ] `H2_CONSOLE_ENABLED` 为 `false`（默认值）
-- [ ] 生产数据库替换 H2，`JPA_DDL_AUTO=validate`
-- [ ] `DNACLOUD_BASE_URL` 设置为公网地址（含 https）
-- [ ] `OKX_SECRET_KEY` 已配置（否则所有付费包无法购买）
-- [ ] `DNACLOUD_SIGNING_KEY` 已配置（否则包签名为 "unsigned"）
-- [ ] `DNACLOUD_PAYMENT_ADDRESS` 已配置（否则无法接收付款）
-- [ ] 服务运行在反向代理（Nginx/Caddy）后，外部仅暴露 443
+```bash
+BASE=https://api.dnacloud.okg.com
 
-### 建议完成
+# 健康检查
+curl -s $BASE/actuator/health
+# 期望：{"status":"UP"}
 
-- [ ] 设置 `DNACLOUD_CORS_ORIGINS` 为实际域名
-- [ ] 部署 TLS 证书（Let's Encrypt 或商业证书）
-- [ ] 配置 artifact 存储目录的备份策略
-- [ ] 配置 `DNACLOUD_TREASURY_KEY` 实现自动链上 payout
+# 搜索包
+curl -s "$BASE/v1/dna/search?q=trading" | python3 -m json.tool | grep '"currency"'
+# 期望："currency": "USDT"
 
-### 已知限制（Hackathon 阶段）
+# 获取包详情
+curl -s "$BASE/v1/dna/trading-master-dna" | python3 -m json.tool | grep '"version"'
+
+# 无支付请求 artifact → 应返回 402
+curl -s -o /dev/null -w "%{http_code}" "$BASE/v1/dna/trading-master-dna/versions/1.0.1/artifact"
+# 期望：402
+
+# 解码 402 的支付要求
+curl -s -I "$BASE/v1/dna/trading-master-dna/versions/1.0.1/artifact" \
+  | grep X-PAYMENT-REQUIREMENT \
+  | awk '{print $2}' \
+  | base64 -d \
+  | python3 -m json.tool
+# 期望：包含 payTo 平台地址、asset USDT 合约、network eip155:196
+```
+
+### 8.2 CLI 端到端安装测试（本地测试模式）
+
+```bash
+# 新建测试目录
+mkdir /tmp/test-install && cd /tmp/test-install
+
+# init
+node /path/to/DNA/packages/cli/dist/index.js init \
+  --marketplace-url https://api.dnacloud.okg.com
+
+# 查看生成的文件
+find . -type f | sort
+
+# install（本地测试模式跳过支付）
+DNACLOUD_LOCAL_TEST=true \
+  node /path/to/DNA/packages/cli/dist/index.js install trading-master-dna -y
+
+# 期望最终输出：
+#   ✔ 安装完成
+#   状态: partial（liveTradingReady: ✗ 因未配置交易所 API key，这是预期行为）
+```
+
+### 8.3 真实 OKX x402 支付测试
+
+> 需要买家已安装 OKX OnchainOS Payment Skill 且 Agentic Wallet 有 USDT 余额
+
+1. 在装有 OKX Payment Skill 的 Claude Code 项目中执行 `dnacloud init`
+2. 重启 Claude Code
+3. 说："我要安装 Trading Master DNA"
+4. 查看 Claude 是否触发 dnacloud skill → 搜索 → 展示包信息 → 发起 OKX 支付
+5. 支付完成后验证：
+
+```bash
+dnacloud verify trading-master-dna
+# 期望：signature verified, payment receipt found, skills/agents/commands 全部 ✓
+```
+
+---
+
+## 九、OKX OnchainOS 账号配置指引
+
+### 9.1 获取 API 凭证（服务端用）
+
+1. 访问 [OKX OnchainOS 开发者门户](https://web3.okx.com/zh-hans/onchainos/dev-portal)
+2. 注册/登录后创建应用
+3. 获取 `API Key`、`Secret Key`、`Passphrase`
+4. 填入服务器 `/opt/dnacloud/.env` 的 `OKX_API_KEY` / `OKX_SECRET_KEY` / `OKX_PASSPHRASE`
+
+> ⚠️ 这是 OnchainOS 凭证，不是 OKX 交易所 API Key，两者不同。
+
+### 9.2 买家侧：安装 OKX Payment Skill
+
+买家在 Claude Code 中操作：
+
+1. 访问 [Payment Skill 安装文档](https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/payment-use-buyer)
+2. 按文档安装 OKX OnchainOS Payment Skill
+3. Skill 自动创建 Agentic Wallet（私钥在 TEE 内，无需导出）
+4. 向 Agentic Wallet 充值 USDT（XLayer 网络）
+5. 余额到账后，即可购买 DNA 包
+
+---
+
+## 十、运维操作
+
+```bash
+# 查看服务状态
+systemctl status dnacloud
+
+# 实时日志
+journalctl -u dnacloud -f
+# 或
+tail -f /opt/dnacloud/logs/app.log
+
+# 重启（修改 .env 后必须执行）
+systemctl restart dnacloud
+
+# 更新 jar
+scp dnacloud-server-*.jar root@163.7.3.34:/opt/dnacloud/dnacloud-server.jar
+ssh root@163.7.3.34 "systemctl restart dnacloud"
+
+# 手动触发 payout（结算创作者收益）
+curl -X POST https://api.dnacloud.okg.com/v1/creator/admin/payouts/run-once \
+  -H "X-Admin-Api-Key: <DNACLOUD_ADMIN_API_KEY>"
+
+# 查看某个创作者收益
+curl "https://api.dnacloud.okg.com/v1/creator/earnings?wallet=0x<address>"
+```
+
+---
+
+## 十一、已知限制
 
 | 功能 | 状态 | 说明 |
 |------|------|------|
-| OKX x402 支付 | HMAC 本地验证 | 使用 OKX API 密钥做 HMAC 签名验证，不调用外部 OKX 支付接口 |
-| 链上 payout | Stub | `DNACLOUD_TREASURY_KEY` 不配置时 payout 保持 pending 状态；配置后接口已预留但 web3j 转账未实现 |
-| 速率限制 | 未实现 | 生产建议在 Nginx 层添加 rate limiting |
-| 认证系统 | 无 | Creator 端口只有 payout_address 参数，无账号体系；admin 端口有 API Key 保护 |
+| OKX x402 支付 | 代码已就绪 | 服务端调用 OKX Facilitator HTTP API，需 OKX OnchainOS 账号激活 |
+| 链上自动 payout | 待实现 | `DNACLOUD_TREASURY_KEY` 配置后接口已预留，web3j 转账逻辑未实现 |
+| 速率限制 | 未实现 | 建议在 Nginx 层添加 rate limiting |
+| 认证系统 | 最简 | Creator 端点仅 payout_address 鉴权；Admin 端点有 API Key 保护 |
+| H2 数据库 | 适合演示 | 生产建议迁移到 MySQL |
 
 ---
 
-## 四、API 端点参考
-
-### Marketplace（公开）
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/v1/dna/search?q=` | 搜索 DNA 包 |
-| GET | `/v1/dna/{packageId}` | 获取包详情 |
-| GET | `/v1/dna/{packageId}/versions/{version}/artifact` | 获取 artifact（触发支付） |
-| GET | `/v1/dna/{packageId}/versions/{version}/download` | 下载 zip 文件 |
-
-### Creator（公开，仅地址鉴权）
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/v1/creator/upload-session` | 创建上传会话 |
-| POST | `/v1/creator/packages/upload` | 上传 DNA 包 |
-| GET | `/v1/creator/packages?wallet=` | 查看已上传包 |
-| GET | `/v1/creator/earnings?wallet=` | 查看收益账本 |
-| GET | `/v1/creator/payouts?wallet=` | 查看结算记录 |
-
-### Admin（需要 X-Admin-Api-Key Header）
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/v1/creator/admin/payouts/run-once` | 手动触发 payout worker |
-
----
-
-## 五、本地开发快速启动
+## 附：本地开发快速启动
 
 ```bash
-# 1. 启动 server（H2 内存模式，跳过支付验证）
-cd server
+# 1. 构建
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home \
-  DNACLOUD_LOCAL_TEST=true \
-  java -jar target/dnacloud-server-1.0.0-SNAPSHOT.jar
+  mvn -f server/pom.xml package -DskipTests
+pnpm -r build
 
-# 2. 初始化本地 DNA workspace
-mkdir my-dna-workspace && cd my-dna-workspace
-dnacloud init
+# 2. 启动服务端（本地测试模式）
+export $(grep -v '^#' .env | grep -v '^$' | xargs)
+DNACLOUD_LOCAL_TEST=true \
+DNACLOUD_BASE_URL=http://localhost:8089 \
+DNACLOUD_ARTIFACT_STORE=./server/test-artifacts \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home \
+  java -jar server/target/dnacloud-server-1.0.0-SNAPSHOT.jar &
 
-# 3. 卖家：打包并上传
-cd /path/to/your-dna-package
-dnacloud validate package.zip
-dnacloud upload package.zip --payout-address 0xYourAddress
+# 3. 健康检查
+sleep 8 && curl -s http://localhost:8089/actuator/health
 
-# 4. 买家：搜索并安装（local-test 模式跳过支付）
-dnacloud install trading-master-dna
-
-# 5. 验证安装
-dnacloud verify trading-master-dna
+# 4. 测试完整安装流程
+mkdir -p /tmp/test-project && cd /tmp/test-project
+DNACLOUD_LOCAL_TEST=true \
+  node /path/to/DNA/packages/cli/dist/index.js install trading-master-dna \
+  --marketplace-url http://localhost:8089 -y
 ```

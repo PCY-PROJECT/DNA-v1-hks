@@ -24,12 +24,12 @@
   ],
   "price": {
     "amount": "0.001",
-    "currency": "USDG",
+    "currency": "USDT",
     "network": "xlayer"
   },
   "payout": {
     "address": "0x0000000000000000000000000000000000000001",
-    "currency": "USDG",
+    "currency": "USDT",
     "network": "xlayer"
   },
   "components": {

@@ -2,7 +2,9 @@
   "mcpServers": {
     "dnacloud-marketplace": {
       "command": "node",
-      "args": ["/Users/oker/Documents/黑客松/DNA/packages/mcp-server/dist/index.js"],
+      "args": [
+        "/Users/oker/Documents/黑客松/DNA/packages/mcp-server/dist/index.js"
+      ],
       "env": {
         "DNACLOUD_MARKETPLACE_URL": "http://localhost:8080"
       }

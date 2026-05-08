@@ -128,14 +128,14 @@ public class CreatorService {
         // Price
         Map<String, Object> price = getNestedMap(manifest, "price");
         String priceAmount = priceOverride != null ? priceOverride : (String) price.getOrDefault("amount", "1.00");
-        String priceCurrency = currencyOverride != null ? currencyOverride : (String) price.getOrDefault("currency", "USDG");
+        String priceCurrency = currencyOverride != null ? currencyOverride : (String) price.getOrDefault("currency", "USDT");
         String priceNetwork = (String) price.getOrDefault("network", "eip155:196");
 
         // Payout
         Map<String, Object> payout = getNestedMap(manifest, "payout");
         String payoutAddress = (String) payout.getOrDefault("address", session.getPayoutAddress());
         String payoutNetwork = (String) payout.getOrDefault("network", "eip155:196");
-        String payoutCurrency = (String) payout.getOrDefault("currency", "USDG");
+        String payoutCurrency = (String) payout.getOrDefault("currency", "USDT");
 
         // Creator
         Map<String, Object> creator = getNestedMap(manifest, "creator");
@@ -256,7 +256,7 @@ public class CreatorService {
             .filter(e -> e.getStatus() == RevenueStatus.paid)
             .mapToLong(RevenueEntryEntity::getCreatorAmount).sum();
 
-        String currency = entries.isEmpty() ? "USDG" : entries.get(0).getCurrency();
+        String currency = entries.isEmpty() ? "USDT" : entries.get(0).getCurrency();
         String network = entries.isEmpty() ? "eip155:196" : entries.get(0).getNetwork();
         String payoutAddr = entries.isEmpty() ? walletAddress : entries.get(0).getPayoutAddress();
 

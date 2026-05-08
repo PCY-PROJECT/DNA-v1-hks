@@ -4,6 +4,9 @@
   "type": "module",
   "description": "DNAcloud MCP server — exposes marketplace search to Claude Code",
   "main": "./dist/index.js",
+  "files": [
+    "dist/"
+  ],
   "bin": {
     "dnacloud-mcp": "./dist/index.js"
   },
@@ -13,12 +16,15 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@dnacloud/schema": "workspace:*",
+    "@dnacloud/schema": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.10.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
     "@types/node": "^22.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

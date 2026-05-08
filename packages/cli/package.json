@@ -19,20 +19,23 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@dnacloud/schema": "workspace:*",
-    "@dnacloud/validator": "workspace:*",
-    "commander": "^12.1.0",
+    "@dnacloud/schema": "^1.0.0",
+    "@dnacloud/validator": "^0.6.0",
+    "adm-zip": "^0.5.16",
     "chalk": "^5.3.0",
-    "ora": "^8.1.0",
+    "commander": "^12.1.0",
     "node-fetch": "^3.3.2",
-    "adm-zip": "^0.5.16"
+    "ora": "^8.1.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
+    "@types/adm-zip": "^0.5.7",
     "@types/node": "^22.0.0",
-    "@types/adm-zip": "^0.5.7"
+    "typescript": "^5.4.0"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
