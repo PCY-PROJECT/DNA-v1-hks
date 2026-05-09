@@ -27,7 +27,7 @@ export async function uploadCommand(packagePath: string, options: UploadOptions)
   const cwd = process.cwd();
   const configPath = path.join(cwd, DNACLOUD_DIR, 'config.json');
   if (!fs.existsSync(configPath)) {
-    spin.fail('未初始化 DNAcloud，请先运行: dnacloud init');
+    spin.fail(`未初始化 DNAcloud，请先在目标目录运行: dnacloud init\n  当前目录: ${cwd}`);
     process.exit(1);
   }
 
@@ -53,6 +53,9 @@ export async function uploadCommand(packagePath: string, options: UploadOptions)
     if (!res.ok) {
       const err = await res.text();
       spin.fail(`创建上传会话失败: ${res.status} ${err}`);
+      if (res.status === 405) {
+        console.log(chalk.yellow('  提示：URL 路径可能缺少 /api，完整地址示例：https://finderfund.cn/dna/api'));
+      }
       process.exit(1);
     }
     session = await res.json() as UploadSession;
@@ -141,6 +144,13 @@ export async function validateLocalPackage(packagePath: string): Promise<void> {
 
     if (report.result === 'failed') {
       spin.fail(`校验失败 (score: ${report.score})`);
+      const hasMissingManifest = report.errors.some(e => e.code === 'MISSING_MANIFEST');
+      if (hasMissingManifest) {
+        console.log('');
+        console.log(chalk.yellow('提示：manifest.json 必须位于 zip 根目录，请使用以下方式打包：'));
+        console.log(chalk.cyan('  cd <package-dir> && zip -r ../<package>.zip .'));
+        console.log(chalk.red('  ✗ 错误方式：zip -r <package>.zip <package-dir>/'));
+      }
     } else if (report.result === 'passed_with_warnings') {
       spin.warn(`校验通过（有警告）(score: ${report.score})`);
     } else {

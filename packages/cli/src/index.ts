@@ -23,7 +23,7 @@ function readLocalMarketplaceUrl(): string {
       if (config.marketplaceUrl) return config.marketplaceUrl;
     }
   } catch {}
-  return process.env.DNACLOUD_MARKETPLACE_URL ?? 'https://api.dnacloud.okg.com';
+  return process.env.DNACLOUD_MARKETPLACE_URL ?? 'https://finderfund.cn/dna/api';
 }
 
 const DEFAULT_MARKETPLACE_URL = readLocalMarketplaceUrl();
@@ -31,7 +31,7 @@ const DEFAULT_MARKETPLACE_URL = readLocalMarketplaceUrl();
 program
   .command('init')
   .description('Initialize DNAcloud Bootstrap in the current Claude Code project')
-  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', DEFAULT_MARKETPLACE_URL)
+  .option('--marketplace-url <url>', `DNAcloud marketplace URL (default: reads .dnacloud/config.json → $DNACLOUD_MARKETPLACE_URL → ${DEFAULT_MARKETPLACE_URL})`)
   .action(initCommand);
 
 program

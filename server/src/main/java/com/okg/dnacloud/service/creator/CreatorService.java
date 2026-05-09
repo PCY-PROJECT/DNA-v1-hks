@@ -101,7 +101,8 @@ public class CreatorService {
         // Compute hash
         String packageHash = computeSha256(tempFile.toFile());
 
-        // Payout address is trusted as declared — no signature verification required
+        // challenge 字段为预留设计，当前版本不验证签名（payout_signature 传 "none" 即可）
+        // 未来版本可对 challenge 做钱包签名验证，以证明创作者持有 payout 地址
 
         // Mark session as used
         session.setUsed(true);
