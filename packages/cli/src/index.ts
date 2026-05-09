@@ -7,13 +7,26 @@ import { statusCommand } from './commands/status.js';
 import { rollbackCommand } from './commands/rollback.js';
 import { uploadCommand, validateLocalPackage } from './commands/upload.js';
 import { creatorEarnings, creatorPayouts, creatorPackages } from './commands/creator.js';
+import fs from 'node:fs';
+import path from 'node:path';
 
 program
   .name('dnacloud')
   .description('DNAcloud CLI — install expert DNA capabilities into Claude Code')
   .version('1.0.0');
 
-const DEFAULT_MARKETPLACE_URL = process.env.DNACLOUD_MARKETPLACE_URL ?? 'https://api.dnacloud.okg.com';
+function readLocalMarketplaceUrl(): string {
+  try {
+    const configPath = path.join(process.cwd(), '.dnacloud', 'config.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      if (config.marketplaceUrl) return config.marketplaceUrl;
+    }
+  } catch {}
+  return process.env.DNACLOUD_MARKETPLACE_URL ?? 'https://api.dnacloud.okg.com';
+}
+
+const DEFAULT_MARKETPLACE_URL = readLocalMarketplaceUrl();
 
 program
   .command('init')
@@ -25,7 +38,7 @@ program
   .command('install <packageId>')
   .description('Install a DNA package from the marketplace')
   .option('--version <version>', 'Package version', 'latest')
-  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', 'https://api.dnacloud.okg.com')
+  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', DEFAULT_MARKETPLACE_URL)
   .option('-y, --yes', 'Skip confirmation prompts')
   .action(installCommand);
 
@@ -57,7 +70,7 @@ program
   .option('--price <amount>', 'Package price (overrides manifest)')
   .option('--currency <currency>', 'Payment currency (default: USDT)')
   .option('--category <category>', 'Package category')
-  .option('--marketplace-url <url>', 'DNAcloud marketplace URL')
+  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', DEFAULT_MARKETPLACE_URL)
   .action(uploadCommand);
 
 const creator = program.command('creator').description('Creator account management');
@@ -65,19 +78,19 @@ const creator = program.command('creator').description('Creator account manageme
 creator
   .command('earnings <walletAddress>')
   .description('Show creator earnings and revenue entries')
-  .option('--marketplace-url <url>', 'DNAcloud marketplace URL')
+  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', DEFAULT_MARKETPLACE_URL)
   .action(creatorEarnings);
 
 creator
   .command('payouts <walletAddress>')
   .description('Show payout batches and settlement status')
-  .option('--marketplace-url <url>', 'DNAcloud marketplace URL')
+  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', DEFAULT_MARKETPLACE_URL)
   .action(creatorPayouts);
 
 creator
   .command('packages <walletAddress>')
   .description('List packages uploaded by this creator')
-  .option('--marketplace-url <url>', 'DNAcloud marketplace URL')
+  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', DEFAULT_MARKETPLACE_URL)
   .action(creatorPackages);
 
 program.parse();
