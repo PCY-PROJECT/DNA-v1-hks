@@ -31,8 +31,8 @@ const DEFAULT_MARKETPLACE_URL = readLocalMarketplaceUrl();
 program
   .command('init')
   .description('Initialize DNAcloud Bootstrap in the current Claude Code project')
-  .option('--marketplace-url <url>', `DNAcloud marketplace URL (default: reads .dnacloud/config.json → $DNACLOUD_MARKETPLACE_URL → ${DEFAULT_MARKETPLACE_URL})`)
-  .action(initCommand);
+  .option('--marketplace-url <url>', `DNAcloud marketplace URL (priority: --flag → .dnacloud/config.json → $DNACLOUD_MARKETPLACE_URL → ${DEFAULT_MARKETPLACE_URL})`)
+  .action((options) => initCommand({ ...options, marketplaceUrl: options.marketplaceUrl ?? DEFAULT_MARKETPLACE_URL }));
 
 program
   .command('install <packageId>')

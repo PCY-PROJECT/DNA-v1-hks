@@ -12,6 +12,18 @@ export async function initCommand(options: InitOptions): Promise<void> {
   console.log(chalk.bold('\nDNAcloud Bootstrap 初始化\n'));
 
   const cwd = process.cwd();
+
+  // 如果已有 config.json，且未显式指定 --marketplace-url，则沿用已有配置的 URL
+  const existingConfigPath = path.join(cwd, DNACLOUD_DIR, 'config.json');
+  if (fs.existsSync(existingConfigPath)) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(existingConfigPath, 'utf-8')) as { marketplaceUrl?: string };
+      if (existing.marketplaceUrl && options.marketplaceUrl === process.env.DNACLOUD_MARKETPLACE_URL) {
+        options = { ...options, marketplaceUrl: existing.marketplaceUrl };
+      }
+    } catch {}
+  }
+
   const spin = ora('检查 Claude Code 项目结构...').start();
 
   const claudeDir = path.join(cwd, CLAUDE_DIR);
