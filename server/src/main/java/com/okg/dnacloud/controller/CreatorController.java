@@ -2,6 +2,7 @@ package com.okg.dnacloud.controller;
 
 import com.okg.dnacloud.entity.PackageVersionEntity;
 import com.okg.dnacloud.entity.UploadSessionEntity;
+import com.okg.dnacloud.service.ValidationFailedException;
 import com.okg.dnacloud.service.creator.CreatorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,6 +74,13 @@ public class CreatorController {
                 "validation_result", entity.getValidationResult() != null ? entity.getValidationResult() : "unknown",
                 "marketplace_url", marketplaceUrl,
                 "validation_report_url", "/v1/packages/" + entity.getPackageId() + "/" + entity.getVersion() + "/validation-report"
+            ));
+        } catch (ValidationFailedException e) {
+            log.warn("[CreatorController.uploadPackage] validation failed, errors={}", e.getValidationReport().getErrors().size());
+            return ResponseEntity.status(422).body(Map.of(
+                "error", "Package validation failed",
+                "validation_result", "failed",
+                "validation_report", e.getValidationReport()
             ));
         } catch (IllegalArgumentException e) {
             log.error("[CreatorController.uploadPackage] bad request, error={}", e.getMessage());

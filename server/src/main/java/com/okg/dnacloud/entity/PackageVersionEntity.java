@@ -45,7 +45,7 @@ public class PackageVersionEntity {
     @Column(name = "package_hash", nullable = false)
     private String packageHash;
 
-    @Column(name = "artifact_path", nullable = true)
+    @Column(name = "artifact_path", nullable = false)
     private String artifactPath;
 
     @Column(name = "manifest_json", columnDefinition = "TEXT")

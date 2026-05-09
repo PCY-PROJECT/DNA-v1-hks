@@ -108,9 +108,12 @@ public class CreatorService {
         session.setUsed(true);
         uploadSessionRepo.save(session);
 
-        // Run validation
+        // Run validation — fail fast, do NOT persist rejected packages
         ValidationReport report = validator.validateZip(tempFile.toFile());
         log.info("[CreatorService.uploadPackage] validation result={}, score={}", report.getResult(), report.getScore());
+        if ("failed".equals(report.getResult())) {
+            throw new com.okg.dnacloud.service.ValidationFailedException(report);
+        }
 
         // Read manifest
         Map<String, Object> manifest = extractManifest(tempFile.toFile());
