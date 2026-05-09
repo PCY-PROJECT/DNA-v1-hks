@@ -63,18 +63,24 @@ export async function installCommand(packageId: string, options: InstallOptions)
       console.log(`  金额:   ${req.maxAmountRequired} ${req.extra?.name ?? req.asset}`);
       console.log(`  网络:   ${req.network}`);
       console.log(`  收款方: ${req.payTo}`);
-      console.log(`\n${chalk.yellow('请在 Claude Code 中执行购买（OKX Payment Skill 会自动处理支付）：')}`);
-      console.log(`  1. 确认已安装 OKX OnchainOS Payment Skill`);
-      console.log(`  2. 确认 Agentic Wallet 有 USDT 余额`);
-      console.log(`  3. 在 Claude Code 中说"我要安装 ${packageId}"\n`);
+      console.log(`\n${chalk.yellow('支付方式 A — OKX OnchainOS CLI（推荐）：')}`);
+      console.log(`  onchainos payment x402-pay --accepts '${JSON.stringify(req)}' --key $YOUR_WALLET_KEY`);
+      console.log(`  # 拿到 base64 payload 后重新运行：`);
+      console.log(chalk.cyan(`  X_PAYMENT_CREDENTIAL=<base64_payload> dnacloud install ${packageId} --yes`));
+      console.log(`\n${chalk.yellow('支付方式 B — Claude Code Agent（需已安装 OKX Payment Skill）：')}`);
+      console.log(`  在 Claude Code 中说"我要安装 ${packageId}"，Agent 会自动完成支付并注入凭证\n`);
       process.exit(1);
     }
   } else {
     spin.text = 'OKX x402 支付凭证验证中...';
     try {
       artifactData = await marketplaceClient.getArtifactWithPayment(packageId, version, xPayment);
-      const txHash = artifactData.paymentReceipt?.txHash ?? '—';
-      spin.succeed(`支付已确认  txHash: ${chalk.green(txHash)}`);
+      const txHash = artifactData.paymentReceipt?.txHash;
+      if (txHash) {
+        spin.succeed(`支付已确认  txHash: ${chalk.green(txHash)}`);
+      } else {
+        spin.succeed('支付已确认（链上结算延迟，txHash 将在 30-60s 后可查）');
+      }
     } catch (err) {
       spin.fail(`支付验证失败: ${(err as Error).message}`);
       process.exit(1);

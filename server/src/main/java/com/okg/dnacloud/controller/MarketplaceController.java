@@ -38,6 +38,9 @@ public class MarketplaceController {
     @Value("${dnacloud.payment-address:}")
     private String paymentAddress;
 
+    @Value("${dnacloud.usdt-contract-address:${USDT_CONTRACT_ADDRESS:}}")
+    private String usdtContractAddress;
+
     private static final java.util.regex.Pattern SAFE_ID = java.util.regex.Pattern.compile("^[a-z0-9][a-z0-9\\-]{0,63}$");
     private static final java.util.regex.Pattern SAFE_VER = java.util.regex.Pattern.compile("^\\d+\\.\\d+\\.\\d+([\\-+][a-zA-Z0-9.]+)?$");
 
@@ -136,16 +139,26 @@ public class MarketplaceController {
         DnaPackageInfo pkg = e.getPackageInfo();
         String resource = "/v1/dna/" + e.getPackageId() + "/versions/" + e.getVersion() + "/artifact";
 
+        // Normalize network to CAIP-2 format required by OKX OnchainOS
+        String rawNetwork = pkg.getPrice().getNetwork();
+        String network402 = (rawNetwork == null || rawNetwork.isBlank() || rawNetwork.equalsIgnoreCase("xlayer"))
+                ? "eip155:196" : rawNetwork;
+
+        // Resolve asset: prefer payout.asset, fall back to platform USDT contract
+        String asset402 = (pkg.getPayout() != null && pkg.getPayout().getAsset() != null
+                && !pkg.getPayout().getAsset().isBlank())
+                ? pkg.getPayout().getAsset() : usdtContractAddress;
+
         Map<String, Object> requirement = Map.of(
             "scheme",             "exact",
-            "network",            pkg.getPrice().getNetwork(),
+            "network",            network402,
             "maxAmountRequired",  toMinimalUnit(pkg.getPrice().getAmount()),
             "resource",           resource,
             "description",        pkg.getName() + " v" + pkg.getVersion(),
             "mimeType",           "application/zip",
             "payTo",              paymentAddress,
             "maxTimeoutSeconds",  300,
-            "asset",              pkg.getPayout() != null ? pkg.getPayout().getAsset() : "",
+            "asset",              asset402,
             "extra",              Map.of(
                 "name",    pkg.getPrice().getCurrency(),
                 "version", "2"

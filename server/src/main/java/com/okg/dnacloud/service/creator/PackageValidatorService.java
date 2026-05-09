@@ -22,6 +22,7 @@ public class PackageValidatorService {
     private static final long MAX_PACKAGE_SIZE = 50L * 1024 * 1024; // 50MB
     private static final long MAX_FILE_SIZE = 5L * 1024 * 1024; // 5MB
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".md", ".json", ".yaml", ".yml", ".txt", ".png", ".svg");
+    private static final Set<String> ALLOWED_PACKAGE_TYPES = Set.of("official-capability-pack", "community-pack", "personal-pack");
     private static final Set<String> SUPPORTED_NETWORKS = Set.of("eip155:196", "xlayer", "eip155:5000", "mantle");
     private static final Set<String> SUPPORTED_CURRENCIES = Set.of("USDG", "USDT", "USDC");
 
@@ -166,6 +167,26 @@ public class PackageValidatorService {
             String version = (String) manifest.get("version");
             if (version == null || !version.matches("^\\d+\\.\\d+\\.\\d+.*$")) {
                 errors.add(error("INVALID_VERSION", "manifest.version must be valid semver", "manifest.json"));
+            }
+
+            // packageType
+            String packageType = (String) manifest.get("packageType");
+            if (packageType == null || !ALLOWED_PACKAGE_TYPES.contains(packageType)) {
+                errors.add(error("INVALID_PACKAGE_TYPE",
+                    "manifest.packageType must be one of: " + ALLOWED_PACKAGE_TYPES + ". Got: " + packageType,
+                    "manifest.json"));
+            }
+
+            // components must be an object (not an array)
+            Object components = manifest.get("components");
+            if (components == null) {
+                errors.add(error("MISSING_COMPONENTS",
+                    "manifest.components is required. Must be an object with keys: skills, agents, commands, mcp, hooks, rules",
+                    "manifest.json"));
+            } else if (components instanceof List) {
+                errors.add(error("INVALID_COMPONENTS_FORMAT",
+                    "manifest.components must be an object (not an array). Expected: {\"skills\":[...],\"agents\":[...],\"commands\":[...],\"mcp\":[...],\"hooks\":[...],\"rules\":[...]}",
+                    "manifest.json"));
             }
 
             // Price
