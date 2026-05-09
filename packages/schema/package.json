@@ -1,6 +1,6 @@
 {
   "name": "@dnacloud/schema",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "DNA package schema types and validators",
   "main": "./dist/index.js",

@@ -86,7 +86,8 @@ public class MarketplaceService {
         return p.getPackageId().toLowerCase().contains(q)
             || p.getName().toLowerCase().contains(q)
             || p.getCategory().toLowerCase().contains(q)
-            || (p.getDescription() != null && p.getDescription().toLowerCase().contains(q));
+            || (p.getDescription() != null && p.getDescription().toLowerCase().contains(q))
+            || (p.getTags() != null && p.getTags().toLowerCase().contains(q));
     }
 
     private DnaPackageInfo toPackageInfo(PackageVersionEntity p) {
@@ -105,6 +106,8 @@ public class MarketplaceService {
                 .currency(p.getPriceCurrency())
                 .network(p.getPriceNetwork())
                 .build())
+            .dnaScore(p.getDnaScore())
+            .certified(false)
             .build();
     }
 
@@ -140,6 +143,8 @@ public class MarketplaceService {
                     .network("eip155:196")
                     .asset(System.getenv().getOrDefault("USDT_CONTRACT_ADDRESS", ""))
                     .build())
+                .dnaScore(95)
+                .certified(true)
                 .build()
         );
     }

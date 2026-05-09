@@ -6,6 +6,7 @@ import com.okg.dnacloud.entity.PackageVersionEntity.PackageStatus;
 import com.okg.dnacloud.entity.RevenueEntryEntity.RevenueStatus;
 import com.okg.dnacloud.model.ValidationReport;
 import com.okg.dnacloud.repository.*;
+import com.okg.dnacloud.service.DnaScoreService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +33,7 @@ public class CreatorService {
     private final UploadSessionRepository uploadSessionRepo;
     private final PackageValidatorService validator;
     private final ObjectMapper objectMapper;
+    private final DnaScoreService dnaScoreService;
 
     @Value("${dnacloud.artifact-store:./artifacts}")
     private String artifactStore;
@@ -183,6 +185,21 @@ public class CreatorService {
             .build();
 
         PackageVersionEntity saved = packageVersionRepo.save(entity);
+
+        // 自动评分（非阻塞，异常不影响主流程）
+        try {
+            int score = dnaScoreService.score(saved);
+            saved.setDnaScore(score);
+            // 从 manifest 读取 tags 字段
+            Object tagsRaw = manifest.get("tags");
+            if (tagsRaw instanceof List<?> tagList) {
+                saved.setTags(tagList.stream().map(Object::toString).collect(java.util.stream.Collectors.joining(",")));
+            }
+            packageVersionRepo.save(saved);
+        } catch (Exception e) {
+            log.warn("[CreatorService.uploadPackage] scoring non-fatal error: {}", e.getMessage());
+        }
+
         Files.deleteIfExists(tempFile);
 
         log.info("[CreatorService.uploadPackage] end, packageId={}, version={}, status={}", packageId, version, status);

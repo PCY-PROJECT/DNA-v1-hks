@@ -16,4 +16,5 @@ public interface PackageVersionRepository extends JpaRepository<PackageVersionEn
     boolean existsByPackageIdAndVersion(String packageId, String version);
     List<PackageVersionEntity> findByStatusAndNameContainingIgnoreCaseOrStatusAndCategoryContainingIgnoreCase(
         PackageStatus status1, String name, PackageStatus status2, String category);
+    List<PackageVersionEntity> findByDnaScoreIsNull();
 }

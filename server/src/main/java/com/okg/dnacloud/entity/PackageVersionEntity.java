@@ -94,6 +94,12 @@ public class PackageVersionEntity {
     @Column(name = "published_at")
     private Instant publishedAt;
 
+    @Column(name = "dna_score")
+    private Integer dnaScore;   // 0-100 自动评分
+
+    @Column(name = "tags", length = 500)
+    private String tags;        // 英文关键词，逗号分隔，从 manifest 读取
+
     public enum PackageStatus {
         draft, uploaded, rejected, published, suspended, deprecated
     }

@@ -18,4 +18,6 @@ public class DnaPackageInfo {
     private List<String> notGuaranteed;
     private DnaPrice price;
     private DnaPayout payout;
+    private Integer dnaScore;    // null 表示未评分
+    private Boolean certified;   // true=官方认证，false=社区包
 }
