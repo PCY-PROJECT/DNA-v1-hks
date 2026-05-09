@@ -119,8 +119,10 @@ public class MarketplaceController {
             return ResponseEntity.badRequest().build();
         }
 
+        log.info("[MarketplaceController.downloadArtifact] resolvedPath={}", target);
         File zipFile = target.toFile();
         if (!zipFile.exists()) {
+            log.warn("[MarketplaceController.downloadArtifact] file not found at path={}", target);
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok()
