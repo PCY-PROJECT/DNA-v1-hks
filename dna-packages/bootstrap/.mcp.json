@@ -4,7 +4,7 @@
       "command": "npx",
       "args": ["-y", "@dnacloud/mcp-server"],
       "env": {
-        "DNACLOUD_MARKETPLACE_URL": "${DNACLOUD_MARKETPLACE_URL:-https://api.dnacloud.okg.com}"
+        "DNACLOUD_MARKETPLACE_URL": "${DNACLOUD_MARKETPLACE_URL:-https://finderfund.cn/dna}"
       }
     }
   }

@@ -111,7 +111,7 @@ ssh $SERVER "systemctl restart dnacloud && sleep 3 && curl -s http://localhost:8
 # ─── 服务基础 ─────────────────────────────────────────────────────
 SERVER_PORT=8089
 # 公网地址，用于拼接 artifact 下载链接（必须与实际访问地址一致）
-DNACLOUD_BASE_URL=https://api.dnacloud.okg.com
+DNACLOUD_BASE_URL=https://finderfund.cn/dna
 
 # ─── Artifact 存储 ────────────────────────────────────────────────
 DNACLOUD_ARTIFACT_STORE=/opt/dnacloud/artifacts
@@ -143,7 +143,7 @@ DNACLOUD_ADMIN_API_KEY=<32字节随机值>
 DNACLOUD_SIGNING_KEY=<64字节随机值>
 
 # ─── 业务参数 ─────────────────────────────────────────────────────
-DNACLOUD_CORS_ORIGINS=https://dnacloud.okg.com
+DNACLOUD_CORS_ORIGINS=https://finderfund.cn/dna
 DNACLOUD_PLATFORM_FEE_RATE=0.20
 DNACLOUD_MINIMUM_PAYOUT=100000
 
@@ -185,16 +185,16 @@ apt-get install -y nginx certbot python3-certbot-nginx
 cat > /etc/nginx/sites-available/dnacloud << 'EOF'
 server {
     listen 80;
-    server_name api.dnacloud.okg.com;
+    server_name finderfund.cn;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
-    server_name api.dnacloud.okg.com;
+    server_name finderfund.cn;
 
-    ssl_certificate     /etc/letsencrypt/live/api.dnacloud.okg.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.dnacloud.okg.com/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/finderfund.cn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/finderfund.cn/privkey.pem;
 
     client_max_body_size 60M;
 
@@ -216,8 +216,8 @@ nginx -t && systemctl reload nginx
 ### 5.3 申请 SSL 证书
 
 ```bash
-# 需要先把 api.dnacloud.okg.com 的 DNS A 记录指向服务器 IP
-certbot --nginx -d api.dnacloud.okg.com
+# 需要先把 finderfund.cn 的 DNS A 记录指向服务器 IP
+certbot --nginx -d finderfund.cn
 ```
 
 ### 5.4 DNS 配置
@@ -226,7 +226,7 @@ certbot --nginx -d api.dnacloud.okg.com
 
 | 类型 | 主机名 | 值 | TTL |
 |------|--------|-----|-----|
-| A | api.dnacloud.okg.com | 163.7.3.34 | 600 |
+| A | finderfund.cn | 163.7.3.34 | 600 |
 
 ---
 
@@ -254,13 +254,13 @@ node packages/cli/dist/index.js validate trading-master-dna-1.0.1.zip
 ```bash
 node packages/cli/dist/index.js upload trading-master-dna-1.0.1.zip \
   --payout-address 0x<平台钱包地址> \
-  --marketplace-url https://api.dnacloud.okg.com
+  --marketplace-url https://finderfund.cn/dna
 ```
 
 ### 6.4 验证上传成功
 
 ```bash
-curl -s "https://api.dnacloud.okg.com/v1/dna/trading-master-dna" | python3 -m json.tool | grep '"version"'
+curl -s "https://finderfund.cn/dna/v1/dna/trading-master-dna" | python3 -m json.tool | grep '"version"'
 ```
 
 ---
@@ -304,7 +304,7 @@ npx @dnacloud/cli init
 ### 8.1 服务端冒烟测试
 
 ```bash
-BASE=https://api.dnacloud.okg.com
+BASE=https://finderfund.cn/dna
 
 # 健康检查
 curl -s $BASE/actuator/health
@@ -338,7 +338,7 @@ mkdir /tmp/test-install && cd /tmp/test-install
 
 # init
 node /path/to/DNA/packages/cli/dist/index.js init \
-  --marketplace-url https://api.dnacloud.okg.com
+  --marketplace-url https://finderfund.cn/dna
 
 # 查看生成的文件
 find . -type f | sort
@@ -411,11 +411,11 @@ scp dnacloud-server-*.jar root@163.7.3.34:/opt/dnacloud/dnacloud-server.jar
 ssh root@163.7.3.34 "systemctl restart dnacloud"
 
 # 手动触发 payout（结算创作者收益）
-curl -X POST https://api.dnacloud.okg.com/v1/creator/admin/payouts/run-once \
+curl -X POST https://finderfund.cn/dna/v1/creator/admin/payouts/run-once \
   -H "X-Admin-Api-Key: <DNACLOUD_ADMIN_API_KEY>"
 
 # 查看某个创作者收益
-curl "https://api.dnacloud.okg.com/v1/creator/earnings?wallet=0x<address>"
+curl "https://finderfund.cn/dna/v1/creator/earnings?wallet=0x<address>"
 ```
 
 ---
