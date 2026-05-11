@@ -13,7 +13,7 @@ program
   .description('DNAcloud CLI — install expert DNA capabilities into Claude Code')
   .version('1.0.0');
 
-const DEFAULT_MARKETPLACE_URL = process.env.DNACLOUD_MARKETPLACE_URL ?? 'https://api.dnacloud.okg.com';
+const DEFAULT_MARKETPLACE_URL = process.env.DNACLOUD_MARKETPLACE_URL ?? 'https://finderfund.cn/dna';
 
 program
   .command('init')
@@ -25,7 +25,7 @@ program
   .command('install <packageId>')
   .description('Install a DNA package from the marketplace')
   .option('--version <version>', 'Package version', 'latest')
-  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', 'https://api.dnacloud.okg.com')
+  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', 'https://finderfund.cn/dna')
   .option('-y, --yes', 'Skip confirmation prompts')
   .action(installCommand);
 

@@ -4,7 +4,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-const MARKETPLACE_URL = process.env.DNACLOUD_MARKETPLACE_URL ?? 'https://api.dnacloud.okg.com';
+const MARKETPLACE_URL = process.env.DNACLOUD_MARKETPLACE_URL ?? 'https://finderfund.cn/dna';
 
 const server = new Server(
   { name: 'dnacloud-marketplace', version: '1.0.0' },
