@@ -23,7 +23,7 @@ function readLocalMarketplaceUrl(): string {
       if (config.marketplaceUrl) return config.marketplaceUrl;
     }
   } catch {}
-  return process.env.DNACLOUD_MARKETPLACE_URL ?? 'https://api.dnacloud.okg.com';
+  return process.env.DNACLOUD_MARKETPLACE_URL ?? 'https://finderfund.cn/dna';
 }
 
 const DEFAULT_MARKETPLACE_URL = readLocalMarketplaceUrl();

@@ -36,7 +36,7 @@ npm install -g @dnacloud/cli
 
 安装后 `dnacloud` 命令全局可用。CLI 内已内置：
 - Bootstrap skill/agent/command 文件
-- 默认 marketplace URL：`https://api.dnacloud.okg.com`
+- 默认 marketplace URL：`https://finderfund.cn/dna`
 - MCP server 通过 `npx -y @dnacloud/mcp-server` 按需启动
 
 ### 当前黑客松状态
@@ -65,7 +65,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home \
 | `@dnacloud/mcp-server` | 本地文件 | 发布到 npm |
 | Bootstrap 文件 | CLI 包已内置 ✓ | — |
 | 默认 marketplace URL | 已改为生产地址 ✓ | 服务器部署到云端 |
-| Java server | `localhost:8080` | 部署到 `api.dnacloud.okg.com` |
+| Java server | `localhost:8080` | 部署到 `finderfund.cn` |
 
 ---
 
