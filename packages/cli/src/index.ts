@@ -14,14 +14,14 @@ program
 program
   .command('init')
   .description('Initialize DNAcloud Bootstrap in the current Claude Code project')
-  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', 'https://api.dnacloud.okg.com')
+  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', 'https://finderfund.cn/dna')
   .action(initCommand);
 
 program
   .command('install <packageId>')
   .description('Install a DNA package from the marketplace')
   .option('--version <version>', 'Package version', 'latest')
-  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', 'https://api.dnacloud.okg.com')
+  .option('--marketplace-url <url>', 'DNAcloud marketplace URL', 'https://finderfund.cn/dna')
   .option('-y, --yes', 'Skip confirmation prompts')
   .action(installCommand);
 
