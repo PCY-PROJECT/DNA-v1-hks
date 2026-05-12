@@ -130,6 +130,13 @@ public class MarketplaceService {
                 .currency(p.getPriceCurrency())
                 .network(p.getPriceNetwork())
                 .build())
+            .payout(DnaPayout.builder()
+                .address(p.getPayoutAddress())
+                .currency(p.getPayoutCurrency())
+                .network(p.getPayoutNetwork())
+                .asset(p.getPayoutCurrency() != null && p.getPayoutCurrency().equalsIgnoreCase("USDT")
+                    ? System.getenv().getOrDefault("USDT_CONTRACT_ADDRESS", "") : "")
+                .build())
             .dnaScore(p.getDnaScore())
             .certified(false)
             .build();
