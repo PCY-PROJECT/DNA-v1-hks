@@ -97,7 +97,8 @@ export class Installer {
 
   private executeInstallPlan(plan: DnaInstallPlan, stagingDir: string): void {
     for (const op of plan.operations) {
-      const srcPath = path.join(stagingDir, op.source);
+      const srcField = op.source ?? (op as unknown as Record<string, string>).src;
+      const srcPath = path.join(stagingDir, srcField);
       const destPath = path.join(this.projectRoot, op.destination);
       fs.mkdirSync(path.dirname(destPath), { recursive: true });
 

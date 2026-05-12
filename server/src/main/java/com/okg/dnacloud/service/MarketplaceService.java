@@ -1,5 +1,7 @@
 package com.okg.dnacloud.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.okg.dnacloud.entity.PackageVersionEntity;
 import com.okg.dnacloud.entity.PackageVersionEntity.PackageStatus;
 import com.okg.dnacloud.model.DnaPackageInfo;
@@ -12,12 +14,15 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MarketplaceService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final PackageVersionRepository packageVersionRepo;
 
@@ -90,7 +95,26 @@ public class MarketplaceService {
             || (p.getTags() != null && p.getTags().toLowerCase().contains(q));
     }
 
+    @SuppressWarnings("unchecked")
+    private List<String> parseCapabilities(String manifestJson) {
+        if (manifestJson == null || manifestJson.isBlank()) return List.of();
+        try {
+            Map<String, Object> manifest = OBJECT_MAPPER.readValue(manifestJson, new TypeReference<>() {});
+            Object caps = manifest.get("capabilities");
+            if (caps instanceof List<?> capList) {
+                return capList.stream()
+                    .filter(c -> c instanceof String)
+                    .map(c -> (String) c)
+                    .toList();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse capabilities from manifestJson: {}", e.getMessage());
+        }
+        return List.of();
+    }
+
     private DnaPackageInfo toPackageInfo(PackageVersionEntity p) {
+        List<String> capabilities = parseCapabilities(p.getManifestJson());
         return DnaPackageInfo.builder()
             .id(p.getPackageId())
             .name(p.getName())
@@ -99,7 +123,7 @@ public class MarketplaceService {
             .description(p.getDescription() != null ? p.getDescription() : "")
             .packageType("community-pack")
             .objective("Community-uploaded capability pack")
-            .capabilities(List.of())
+            .capabilities(capabilities)
             .notGuaranteed(List.of("profitability", "quality"))
             .price(DnaPrice.builder()
                 .amount(p.getPriceAmount())
