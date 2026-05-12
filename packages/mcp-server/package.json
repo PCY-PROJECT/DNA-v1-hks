@@ -1,6 +1,6 @@
 {
   "name": "@dnacloud/mcp-server",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "description": "DNAcloud MCP server — exposes marketplace search to Claude Code",
   "main": "./dist/index.js",

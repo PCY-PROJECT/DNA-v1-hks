@@ -1,6 +1,6 @@
 {
   "name": "@dnacloud/cli",
-  "version": "0.6.7",
+  "version": "0.6.8",
   "type": "module",
   "description": "DNAcloud CLI — install expert DNA capabilities into Claude Code",
   "bin": {
